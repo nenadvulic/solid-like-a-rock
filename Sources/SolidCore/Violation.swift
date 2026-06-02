@@ -19,15 +19,18 @@ public struct Violation: Equatable {
     public let reason: Reason
     /// For `.outwardDependency`, the more-outer layer the imported module belongs to.
     public let targetLayer: String?
+    /// Whether this violation fails the build (`.error`) or just warns.
+    public let severity: Severity
 
     public init(file: String, line: Int, importedModule: String, layer: String,
-                reason: Reason, targetLayer: String? = nil) {
+                reason: Reason, targetLayer: String? = nil, severity: Severity = .error) {
         self.file = file
         self.line = line
         self.importedModule = importedModule
         self.layer = layer
         self.reason = reason
         self.targetLayer = targetLayer
+        self.severity = severity
     }
 
     /// A human-readable explanation of the violation.
@@ -43,8 +46,8 @@ public struct Violation: Equatable {
         }
     }
 
-    /// Xcode / CI-friendly diagnostic line: `path:line: error: message`.
+    /// Xcode / CI-friendly diagnostic line: `path:line: error|warning: message`.
     public var diagnostic: String {
-        "\(file):\(line): error: SolidLikeARock: \(message)"
+        "\(file):\(line): \(severity.rawValue): SolidLikeARock: \(message)"
     }
 }

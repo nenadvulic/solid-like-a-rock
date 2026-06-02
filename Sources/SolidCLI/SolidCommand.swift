@@ -23,6 +23,14 @@ struct SolidCommand: ParsableCommand {
     @Option(name: .shortAndLong, help: "Output format: text (default) or json (for tooling like Danger).")
     var format: OutputFormat = .text
 
+    @Option(name: .customLong("baseline"),
+            help: "Path to a baseline file; violations recorded there are ignored (only new ones fail).")
+    var baseline: String?
+
+    @Option(name: .customLong("write-baseline"),
+            help: "Record all current violations to this file and exit, to baseline an existing codebase.")
+    var writeBaseline: String?
+
     @Argument(help: "Directories or .swift files to scan. Defaults to the current directory.")
     var paths: [String] = ["."]
 
@@ -55,14 +63,31 @@ struct SolidCommand: ParsableCommand {
             }
         }
 
-        let violations = try linter.lint(files: files)
+        let allViolations = try linter.lint(files: files)
             .sorted(by: { ($0.file, $0.line) < ($1.file, $1.line) })
 
-        // JSON mode: emit a pure, parseable array on stdout (no banner lines),
-        // but keep the exit code reflecting whether violations were found.
+        // --write-baseline: snapshot the current violations and exit successfully.
+        if let path = writeBaseline {
+            try Baseline(violations: allViolations).write(to: path)
+            print("📝 SolidLikeARock: wrote baseline with \(allViolations.count) violation(s) to \(path).")
+            return
+        }
+
+        // --baseline: drop violations already recorded, so only new ones remain.
+        let violations: [Violation]
+        if let path = baseline {
+            violations = try Baseline.load(from: path).newViolations(in: allViolations)
+        } else {
+            violations = allViolations
+        }
+
+        // A build only fails on `.error` violations; `.warning` are reported but tolerated.
+        let errors = violations.filter { $0.severity == .error }
+
+        // JSON mode: emit a pure, parseable array on stdout (no banner lines).
         if format == .json {
             print(try renderJSON(violations))
-            if !violations.isEmpty { throw ExitCode.failure }
+            if !errors.isEmpty { throw ExitCode.failure }
             return
         }
 
@@ -74,7 +99,13 @@ struct SolidCommand: ParsableCommand {
         for violation in violations {
             print(violation.diagnostic)
         }
-        print("❌ SolidLikeARock: \(violations.count) violation(s) found.")
+
+        let warnings = violations.count - errors.count
+        if errors.isEmpty {
+            print("⚠️  SolidLikeARock: \(warnings) warning(s), 0 error(s).")
+            return
+        }
+        print("❌ SolidLikeARock: \(errors.count) error(s), \(warnings) warning(s).")
         throw ExitCode.failure
     }
 }

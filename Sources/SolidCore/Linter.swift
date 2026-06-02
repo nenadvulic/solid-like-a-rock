@@ -54,6 +54,9 @@ public final class Linter {
     func check(_ imp: ImportRef, in layer: LayerRule, file: String) -> Violation? {
         let module = imp.module
 
+        // 0. An explicit `// solid:ignore <reason>` whitelists this import.
+        if imp.ignoreReason != nil { return nil }
+
         // 1. System frameworks etc. are always fine.
         if config.alwaysAllow.contains(module) { return nil }
 
@@ -64,7 +67,7 @@ public final class Linter {
         //    deny FORCES a violation; allow EXEMPTS the import.
         if let deny = layer.deny, deny.contains(module) {
             return Violation(file: file, line: imp.line, importedModule: module,
-                             layer: layer.name, reason: .deniedImport)
+                             layer: layer.name, reason: .deniedImport, severity: layer.severity)
         }
         if let allow = layer.allow, allow.contains(module) { return nil }
 
@@ -77,14 +80,14 @@ public final class Linter {
            there > here {
             return Violation(file: file, line: imp.line, importedModule: module,
                              layer: layer.name, reason: .outwardDependency,
-                             targetLayer: targetLayer.name)
+                             targetLayer: targetLayer.name, severity: layer.severity)
         }
 
         // 5. Whitelist mode (v0.1.0): with an `allow` list, anything not on it is
         //    a violation. Only applies when allow is set and didn't match above.
         if let allow = layer.allow, !allow.contains(module) {
             return Violation(file: file, line: imp.line, importedModule: module,
-                             layer: layer.name, reason: .notAllowedImport)
+                             layer: layer.name, reason: .notAllowedImport, severity: layer.severity)
         }
 
         // 6. Unknown / external module with no rule against it: allowed.
