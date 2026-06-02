@@ -145,6 +145,15 @@ Because the output uses the `file:line: error:` format, violations show up as
 **red errors inline in the editor** and fail the build. Drop the `command -v`
 guard if you'd rather make the tool mandatory for everyone.
 
+Xcode will warn that the phase "will be run during every build because it does
+not specify any outputs" — that's exactly what you want for a linter. Silence it
+by unchecking **"Based on dependency analysis"** on the phase (it then runs every
+build, as intended).
+
+Prefer it as a separate, run-on-demand step instead of part of the app build?
+Make it a dedicated **aggregate target** (`+` under TARGETS → *Aggregate*) with
+the same Run Script phase, and build that scheme to lint.
+
 #### Zero-install variant (auto-download a pinned binary)
 
 If you don't want every contributor to install the tool, have the build phase
