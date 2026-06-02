@@ -1,0 +1,28 @@
+# SolidLikeARock — example configuration
+#
+# Architectural rule: dependencies point inward.
+#
+#   Domain  <-  Data  <-  Presentation
+#
+# Domain is the innermost layer and must not know about anything else.
+
+# Modules every layer may always import (system frameworks, etc.).
+alwaysAllow:
+  - Foundation
+  - Combine
+
+layers:
+  # Innermost layer: strict whitelist. Only Foundation is permitted.
+  - name: Domain
+    paths: [Sources/Domain]
+    allow: [Foundation]
+
+  # Data may depend on Domain, but never reach out to Presentation.
+  - name: Data
+    paths: [Sources/Data]
+    deny: [Presentation]
+
+  # Presentation must not reach across to the Data layer directly.
+  - name: Presentation
+    paths: [Sources/Presentation]
+    deny: [Data]
