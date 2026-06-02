@@ -177,6 +177,28 @@ swift run --package-path /tmp/slr solid-like-a-rock --config .solid.yml Sources
 Either way the non-zero exit code fails the job, so a layer violation blocks the
 merge the same way a failing test would.
 
+### SwiftPM command plugin (zero-install)
+
+If your project is a SwiftPM package, add SolidLikeARock as a dependency and run
+the bundled **command plugin** — nothing to install, and it works the same
+locally and in CI:
+
+```swift
+// your Package.swift
+dependencies: [
+    .package(url: "https://github.com/nenadvulic/solid-like-a-rock", from: "0.1.5"),
+],
+```
+
+```bash
+swift package solid-lint --config .solid.yml Sources
+# or, with the conventional layout (.solid.yml at the package root + Sources/):
+swift package solid-lint
+```
+
+The plugin runs read-only and exits non-zero when violations are found, so it
+drops straight into a CI step.
+
 ## Example project
 
 A runnable 4-layer Clean Architecture sample lives at
