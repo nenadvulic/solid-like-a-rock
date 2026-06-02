@@ -1,10 +1,11 @@
-# SolidLikeARock — example configuration
+# SolidLikeARock — example configuration (v0.1.5 layered model)
 #
-# Architectural rule: dependencies point inward.
+# Architectural rule: dependencies point INWARD.
 #
-#   Domain  <-  Data  <-  Presentation
+#   Domain  <-  Application  <-  Infrastructure  <-  Presentation
 #
-# Domain is the innermost layer and must not know about anything else.
+# Declare the layer order once and let the tool derive the "no outward
+# dependency" rule; add allow/deny only for fine-grained exceptions.
 
 # Path fragments to skip entirely (dependencies, build artefacts, …).
 exclude:
@@ -17,18 +18,31 @@ alwaysAllow:
   - Foundation
   - Combine
 
+# Innermost (index 0) to outermost. A layer may import its own and any
+# more-inner layer; importing a more-outer one is a violation.
+dependencyOrder: [Domain, Application, Infrastructure, Presentation]
+
 layers:
-  # Innermost layer: strict whitelist. Only Foundation is permitted.
+  # A layer owns one or more modules (defaults to [name] when omitted) and is
+  # matched to files by `paths` globs (* within a segment, ** across segments).
   - name: Domain
-    paths: [Sources/Domain]
-    allow: [Foundation]
+    modules: [DomainModels, DomainServices]
+    paths:   [Sources/Domain/**, Sources/DomainServices/**]
 
-  # Data may depend on Domain, but never reach out to Presentation.
-  - name: Data
-    paths: [Sources/Data]
-    deny: [Presentation]
+  - name: Application
+    modules: [Application]
+    paths:   [Sources/Application/**]
 
-  # Presentation must not reach across to the Data layer directly.
+  - name: Infrastructure
+    modules: [Infrastructure]
+    paths:   [Sources/Infrastructure/**]
+
   - name: Presentation
-    paths: [Sources/Presentation]
-    deny: [Data]
+    modules: [Presentation]
+    paths:   [Sources/Presentation/**]
+    # Stricter-than-the-order exception: the UI must not reach Infrastructure
+    # directly, even though that is technically an inward dependency.
+    deny:    [Infrastructure]
+
+# Legacy mode (no dependencyOrder) still works: give each layer an explicit
+# `allow` (whitelist) or `deny` (blacklist) and rules apply per layer.

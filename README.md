@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/lockup-readme-dark.png" alt="SolidRock — import rules for Swift, via SwiftSyntax" width="440">
+</p>
+
 # SolidLikeARock
 
 A tiny, dependency-light Swift CLI that enforces **architectural import rules** in
