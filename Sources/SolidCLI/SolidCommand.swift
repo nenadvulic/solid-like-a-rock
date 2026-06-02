@@ -28,6 +28,13 @@ struct SolidCommand: ParsableCommand {
             throw ExitCode.failure
         }
 
+        do {
+            try configuration.validate()
+        } catch {
+            FileHandle.standardError.write(Data("SolidLikeARock: invalid config '\(config)': \(error)\n".utf8))
+            throw ExitCode.failure
+        }
+
         let linter = Linter(config: configuration)
         let excludes = configuration.exclude + exclude
 

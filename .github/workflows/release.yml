@@ -22,7 +22,9 @@ jobs:
           BIN=.build/release/solid-like-a-rock
           test -x "$BIN" || { echo "binary not found at $BIN"; exit 1; }
           ARCH=$(uname -m)
-          TARBALL="solid-like-a-rock-${GITHUB_REF_NAME}-macos-${ARCH}.tar.gz"
+          # Stable asset name (no version), so `releases/latest/download/<name>`
+          # works in CI; the release tag already carries the version.
+          TARBALL="solid-like-a-rock-macos-${ARCH}.tar.gz"
           tar -czf "$TARBALL" -C .build/release solid-like-a-rock
           shasum -a 256 "$TARBALL" > "$TARBALL.sha256"
           echo "TARBALL=$TARBALL" >> "$GITHUB_ENV"

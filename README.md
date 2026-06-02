@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/lockup-readme-dark.png" alt="Solid Like A Rock — import rules for Swift, via SwiftSyntax" width="440">
+</p>
+
 # SolidLikeARock
 
 A tiny, dependency-light Swift CLI that enforces **architectural import rules** in
@@ -59,12 +63,50 @@ layers:
   for strict inner layers like `Domain`.
 - **`deny` (blacklist)** — these modules are forbidden; everything else is fine.
   Use this for "this layer must not reach across to that one" rules.
-- A file is assigned to the **first** layer whose `paths` substring matches it,
-  so list more specific paths first.
+- A file is assigned to the **first** layer whose `paths` glob matches it, so
+  list more specific paths first. `paths` are **globs** (`*` within a segment,
+  `**` across segments, `?` one char), aligned on path-component boundaries — so
+  `Sources/Domain` matches `Sources/Domain/...` but never `Sources/DomainHelpers`.
 - **`exclude`** drops any file whose path contains one of these fragments before
   layer matching — essential for monorepos that vendor dependencies (`.build`,
   `Pods`, SwiftPM `checkouts`). You can also pass them on the CLI:
   `solid-like-a-rock --exclude .build Pods -- Sources`.
+
+### Layered mode (`dependencyOrder`)
+
+In a multi-module SPM project a layer often spans several modules. Declare them
+with `modules:` (defaults to `[name]`), then declare the layer order **once**
+and let the tool derive the rules — no hand-written allow/deny per layer:
+
+```yaml
+# innermost first; dependencies may point inward, never outward
+dependencyOrder: [Domain, Application, Infrastructure, Presentation]
+
+layers:
+  - name: Domain
+    modules: [DomainModels, DomainServices]   # one layer, several modules
+    paths:   [Sources/Domain/**, Sources/DomainServices/**]
+
+  - name: Presentation
+    modules: [UIToolkit, Booking, Search]
+    paths:   [Sources/Presentation/**]
+    deny:    [NetworkProvider]   # stricter exception on top of the order
+```
+
+A module that belongs to a **more-outer** layer than the file's own layer is an
+*outward dependency* and fails. Rules resolve in this order:
+
+1. `alwaysAllow` → allowed
+2. same layer (intra-layer import) → allowed
+3. explicit **`deny`** → violation (forces it, even on an inward import);
+   explicit **`allow`** → allowed (exempts it, even from an outward violation)
+4. `dependencyOrder`: importing a more-outer layer → violation
+5. a module in no layer (third-party framework) → allowed by default
+
+`allow`/`deny` keep working on their own when `dependencyOrder` is unset (the
+v0.1.0 behaviour), so existing configs are unchanged. A module may belong to at
+most one layer, and every `dependencyOrder` name must match a declared layer —
+both are checked before linting.
 
 ## Run
 
@@ -83,6 +125,83 @@ Sources/Presentation/HomeView.swift:5: error: SolidLikeARock: layer 'Presentatio
 
 Exit code is non-zero when violations are found — drop it straight into a CI step
 or an Xcode "Run Script" build phase.
+
+## Integrate into an existing project
+
+### Xcode — Run Script build phase
+
+Select your app target → **Build Phases** → **+** → **New Run Script Phase**,
+then paste:
+
+```bash
+if command -v solid-like-a-rock >/dev/null; then
+  solid-like-a-rock --config "$SRCROOT/.solid.yml" "$SRCROOT/Sources"
+else
+  echo "warning: solid-like-a-rock not installed — skipping architecture lint"
+fi
+```
+
+Because the output uses the `file:line: error:` format, violations show up as
+**red errors inline in the editor** and fail the build. Drop the `command -v`
+guard if you'd rather make the tool mandatory for everyone.
+
+### CI — download the released binary (recommended)
+
+Each tagged release publishes a prebuilt macOS binary, so CI doesn't pay the
+SwiftSyntax build cost:
+
+```yaml
+# .github/workflows/architecture.yml
+name: Architecture
+on: [push, pull_request]
+jobs:
+  lint:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install solid-like-a-rock
+        run: |
+          curl -fsSL -o slr.tar.gz \
+            https://github.com/nenadvulic/solid-like-a-rock/releases/latest/download/solid-like-a-rock-macos-arm64.tar.gz
+          tar -xzf slr.tar.gz && sudo mv solid-like-a-rock /usr/local/bin/
+      - name: Lint import boundaries
+        run: solid-like-a-rock --config .solid.yml Sources
+```
+
+### CI — run from source, nothing to install
+
+If your project is already a SwiftPM package (or you just want it for free in
+CI), build and run the tool straight from a checkout — no binary to manage:
+
+```bash
+git clone --depth 1 https://github.com/nenadvulic/solid-like-a-rock /tmp/slr
+swift run --package-path /tmp/slr solid-like-a-rock --config .solid.yml Sources
+```
+
+Either way the non-zero exit code fails the job, so a layer violation blocks the
+merge the same way a failing test would.
+
+### SwiftPM command plugin (zero-install)
+
+If your project is a SwiftPM package, add SolidLikeARock as a dependency and run
+the bundled **command plugin** — nothing to install, and it works the same
+locally and in CI:
+
+```swift
+// your Package.swift
+dependencies: [
+    .package(url: "https://github.com/nenadvulic/solid-like-a-rock", from: "0.1.5"),
+],
+```
+
+```bash
+swift package solid-lint --config .solid.yml Sources
+# or, with the conventional layout (.solid.yml at the package root + Sources/):
+swift package solid-lint
+```
+
+The plugin runs read-only and exits non-zero when violations are found, so it
+drops straight into a CI step.
 
 ## Example project
 

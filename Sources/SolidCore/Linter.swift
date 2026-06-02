@@ -30,35 +30,70 @@ public final class Linter {
     }
 
     /// Find the first layer whose configured paths match this file path.
+    ///
+    /// Each `paths` entry is a glob (see `globMatch`). A bare directory fragment
+    /// like `Sources/Domain` (no wildcard) is treated as "this directory and
+    /// everything under it" — matching `Sources/Domain/...` but, thanks to
+    /// component-boundary alignment, never the sibling `Sources/DomainHelpers`.
     func layer(for file: String) -> LayerRule? {
-        let normalized = file.replacingOccurrences(of: "\\", with: "/")
-        return config.layers.first { rule in
-            rule.paths.contains { normalized.contains($0) }
+        config.layers.first { rule in
+            rule.paths.contains { pathMatches(file, pattern: $0) }
         }
     }
 
+    /// A file matches a path pattern if the glob matches it directly, or if the
+    /// pattern names a containing directory (`pattern/**`).
+    private func pathMatches(_ file: String, pattern: String) -> Bool {
+        globMatch(file, pattern: pattern) || globMatch(file, pattern: pattern + "/**")
+    }
+
     /// Evaluate a single import against a layer's rules.
+    ///
+    /// Evaluation order (see README): alwaysAllow → same layer → explicit
+    /// deny/allow exceptions → dependencyOrder derivation → external default.
     func check(_ imp: ImportRef, in layer: LayerRule, file: String) -> Violation? {
         let module = imp.module
 
-        // System frameworks etc. are always fine.
+        // 1. System frameworks etc. are always fine.
         if config.alwaysAllow.contains(module) { return nil }
-        // A layer can always import a module that shares its own name.
-        if module == layer.name { return nil }
 
-        // Blacklist takes priority.
+        // 2. A module that belongs to this same layer is always fine (intra-layer).
+        if layer.modules.contains(module) { return nil }
+
+        // 3. Explicit exceptions take precedence over any derived rule.
+        //    deny FORCES a violation; allow EXEMPTS the import.
         if let deny = layer.deny, deny.contains(module) {
             return Violation(file: file, line: imp.line, importedModule: module,
                              layer: layer.name, reason: .deniedImport)
         }
+        if let allow = layer.allow, allow.contains(module) { return nil }
 
-        // Whitelist mode: anything not explicitly allowed is a violation.
+        // 4. Derived rule from dependencyOrder: importing a more-outer layer is
+        //    an outward dependency and therefore a violation.
+        if !config.dependencyOrder.isEmpty,
+           let here = config.dependencyOrder.firstIndex(of: layer.name),
+           let targetLayer = self.layer(owning: module),
+           let there = config.dependencyOrder.firstIndex(of: targetLayer.name),
+           there > here {
+            return Violation(file: file, line: imp.line, importedModule: module,
+                             layer: layer.name, reason: .outwardDependency,
+                             targetLayer: targetLayer.name)
+        }
+
+        // 5. Whitelist mode (v0.1.0): with an `allow` list, anything not on it is
+        //    a violation. Only applies when allow is set and didn't match above.
         if let allow = layer.allow, !allow.contains(module) {
             return Violation(file: file, line: imp.line, importedModule: module,
                              layer: layer.name, reason: .notAllowedImport)
         }
 
+        // 6. Unknown / external module with no rule against it: allowed.
         return nil
+    }
+
+    /// The layer that declares `module` among its `modules`, if any.
+    func layer(owning module: String) -> LayerRule? {
+        config.layers.first { $0.modules.contains(module) }
     }
 }
 

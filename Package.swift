@@ -1,4 +1,4 @@
-// swift-tools-version: 5.9
+// swift-tools-version: 6.0
 import PackageDescription
 
 // NOTE on swift-syntax versioning:
@@ -10,8 +10,11 @@ let package = Package(
     name: "SolidLikeARock",
     platforms: [.macOS(.v12)],
     products: [
-        .executable(name: "solid-like-a-rock", targets: ["SolidCLI"]),
+        .executable(name: "solid-like-a-rock", targets: ["solid-like-a-rock"]),
         .library(name: "SolidCore", targets: ["SolidCore"]),
+        // Exposed so any package depending on SolidLikeARock can run
+        // `swift package solid-lint` — architecture linting for free in CI.
+        .plugin(name: "SolidLint", targets: ["SolidLint"]),
     ],
     dependencies: [
         .package(url: "https://github.com/swiftlang/swift-syntax.git", "600.0.0"..<"603.0.0"),
@@ -27,12 +30,16 @@ let package = Package(
                 .product(name: "Yams", package: "Yams"),
             ]
         ),
+        // The target is named after the product on purpose: a command plugin can
+        // only locate a same-package executable via `context.tool(named:)` when
+        // the target name matches the product name (see swift-package-manager#6524).
         .executableTarget(
-            name: "SolidCLI",
+            name: "solid-like-a-rock",
             dependencies: [
                 "SolidCore",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
-            ]
+            ],
+            path: "Sources/SolidCLI"
         ),
         .testTarget(
             name: "SolidCoreTests",
@@ -42,5 +49,20 @@ let package = Package(
             // read back as text fixtures via `Bundle.module` at runtime.
             resources: [.copy("Fixtures")]
         ),
-    ]
+        .plugin(
+            name: "SolidLint",
+            capability: .command(
+                intent: .custom(
+                    verb: "solid-lint",
+                    description: "Enforce architectural import boundaries (SOLID / Clean Architecture)."
+                )
+                // Read-only: no `permissions` needed — the plugin only parses sources.
+            ),
+            dependencies: [.target(name: "solid-like-a-rock")]
+        ),
+    ],
+    // tools-version 6.0 is required so the command plugin can invoke the
+    // same-package executable, but we stay on the Swift 5 language mode — we
+    // aren't opting into Swift 6 strict concurrency here.
+    swiftLanguageModes: [.v5]
 )

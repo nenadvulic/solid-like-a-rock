@@ -16,15 +16,36 @@ import Yams
 /// `allow` and `deny` can be combined; `deny` is checked first.
 public struct LayerRule: Decodable, Equatable {
     public let name: String
+    /// The modules that belong to this layer. When omitted in YAML it defaults
+    /// to `[name]`, so the layer name doubles as its single module (the v0.1.0
+    /// behaviour). Listing several modules lets one layer span them, e.g.
+    /// `Domain` owning `DomainModels` and `DomainServices`.
+    public let modules: [String]
     public let paths: [String]
     public let allow: [String]?
     public let deny: [String]?
 
-    public init(name: String, paths: [String], allow: [String]? = nil, deny: [String]? = nil) {
+    public init(name: String, paths: [String], modules: [String]? = nil,
+                allow: [String]? = nil, deny: [String]? = nil) {
         self.name = name
+        self.modules = modules ?? [name]
         self.paths = paths
         self.allow = allow
         self.deny = deny
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case name, modules, paths, allow, deny
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let name = try c.decode(String.self, forKey: .name)
+        self.name = name
+        self.modules = (try? c.decode([String].self, forKey: .modules)) ?? [name]
+        self.paths = try c.decode([String].self, forKey: .paths)
+        self.allow = try? c.decode([String].self, forKey: .allow)
+        self.deny = try? c.decode([String].self, forKey: .deny)
     }
 }
 
@@ -35,22 +56,30 @@ public struct Configuration: Decodable, Equatable {
     /// Ordered list of layers. The FIRST layer whose path matches a file wins,
     /// so list more specific paths before broader ones.
     public let layers: [LayerRule]
+    /// Layer names from the most INNER (index 0) to the most OUTER. When set,
+    /// the linter derives the "dependencies point inward" rule: a layer may
+    /// import its own and any more-inner layer, but importing a more-outer layer
+    /// is a violation. Empty = disabled (pure v0.1.0 allow/deny behaviour).
+    public let dependencyOrder: [String]
     /// Path fragments that exclude a file from scanning entirely. Any file whose
     /// path contains one of these substrings is skipped before layer matching —
     /// use it to keep dependencies and build artefacts (`.build`, `Pods`,
     /// `checkouts`, …) out of the analysis.
     public let exclude: [String]
 
-    public init(alwaysAllow: [String] = [], layers: [LayerRule], exclude: [String] = []) {
+    public init(alwaysAllow: [String] = [], layers: [LayerRule], exclude: [String] = [],
+                dependencyOrder: [String] = []) {
         self.alwaysAllow = alwaysAllow
         self.layers = layers
         self.exclude = exclude
+        self.dependencyOrder = dependencyOrder
     }
 
     enum CodingKeys: String, CodingKey {
         case alwaysAllow
         case layers
         case exclude
+        case dependencyOrder
     }
 
     public init(from decoder: Decoder) throws {
@@ -58,6 +87,7 @@ public struct Configuration: Decodable, Equatable {
         self.alwaysAllow = (try? c.decode([String].self, forKey: .alwaysAllow)) ?? []
         self.layers = try c.decode([LayerRule].self, forKey: .layers)
         self.exclude = (try? c.decode([String].self, forKey: .exclude)) ?? []
+        self.dependencyOrder = (try? c.decode([String].self, forKey: .dependencyOrder)) ?? []
     }
 
     /// Load and decode a configuration from a YAML file on disk.
@@ -65,4 +95,32 @@ public struct Configuration: Decodable, Equatable {
         let text = try String(contentsOfFile: path, encoding: .utf8)
         return try YAMLDecoder().decode(Configuration.self, from: text)
     }
+
+    /// Check structural invariants that would otherwise make rule resolution
+    /// ambiguous. Call after loading, before linting.
+    public func validate() throws {
+        // No module may be owned by more than one layer (resolution must be 1:1).
+        var owners: [String: [String]] = [:]
+        for layer in layers {
+            for module in layer.modules {
+                owners[module, default: []].append(layer.name)
+            }
+        }
+        for (module, layerNames) in owners where layerNames.count > 1 {
+            throw ConfigurationError.duplicateModule(module, layerNames)
+        }
+        // Every name in dependencyOrder must refer to a declared layer.
+        let known = Set(layers.map(\.name))
+        for name in dependencyOrder where !known.contains(name) {
+            throw ConfigurationError.unknownLayerInOrder(name)
+        }
+    }
+}
+
+/// Errors raised by `Configuration.validate()`.
+public enum ConfigurationError: Error, Equatable {
+    /// A module is declared by more than one layer (with the owning layer names).
+    case duplicateModule(String, [String])
+    /// `dependencyOrder` references a layer name that no layer declares.
+    case unknownLayerInOrder(String)
 }
