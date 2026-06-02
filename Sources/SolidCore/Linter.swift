@@ -30,11 +30,21 @@ public final class Linter {
     }
 
     /// Find the first layer whose configured paths match this file path.
+    ///
+    /// Each `paths` entry is a glob (see `globMatch`). A bare directory fragment
+    /// like `Sources/Domain` (no wildcard) is treated as "this directory and
+    /// everything under it" — matching `Sources/Domain/...` but, thanks to
+    /// component-boundary alignment, never the sibling `Sources/DomainHelpers`.
     func layer(for file: String) -> LayerRule? {
-        let normalized = file.replacingOccurrences(of: "\\", with: "/")
-        return config.layers.first { rule in
-            rule.paths.contains { normalized.contains($0) }
+        config.layers.first { rule in
+            rule.paths.contains { pathMatches(file, pattern: $0) }
         }
+    }
+
+    /// A file matches a path pattern if the glob matches it directly, or if the
+    /// pattern names a containing directory (`pattern/**`).
+    private func pathMatches(_ file: String, pattern: String) -> Bool {
+        globMatch(file, pattern: pattern) || globMatch(file, pattern: pattern + "/**")
     }
 
     /// Evaluate a single import against a layer's rules.
