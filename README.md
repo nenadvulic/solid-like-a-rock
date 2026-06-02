@@ -59,12 +59,50 @@ layers:
   for strict inner layers like `Domain`.
 - **`deny` (blacklist)** — these modules are forbidden; everything else is fine.
   Use this for "this layer must not reach across to that one" rules.
-- A file is assigned to the **first** layer whose `paths` substring matches it,
-  so list more specific paths first.
+- A file is assigned to the **first** layer whose `paths` glob matches it, so
+  list more specific paths first. `paths` are **globs** (`*` within a segment,
+  `**` across segments, `?` one char), aligned on path-component boundaries — so
+  `Sources/Domain` matches `Sources/Domain/...` but never `Sources/DomainHelpers`.
 - **`exclude`** drops any file whose path contains one of these fragments before
   layer matching — essential for monorepos that vendor dependencies (`.build`,
   `Pods`, SwiftPM `checkouts`). You can also pass them on the CLI:
   `solid-like-a-rock --exclude .build Pods -- Sources`.
+
+### Layered mode (`dependencyOrder`)
+
+In a multi-module SPM project a layer often spans several modules. Declare them
+with `modules:` (defaults to `[name]`), then declare the layer order **once**
+and let the tool derive the rules — no hand-written allow/deny per layer:
+
+```yaml
+# innermost first; dependencies may point inward, never outward
+dependencyOrder: [Domain, Application, Infrastructure, Presentation]
+
+layers:
+  - name: Domain
+    modules: [DomainModels, DomainServices]   # one layer, several modules
+    paths:   [Sources/Domain/**, Sources/DomainServices/**]
+
+  - name: Presentation
+    modules: [UIToolkit, Booking, Search]
+    paths:   [Sources/Presentation/**]
+    deny:    [NetworkProvider]   # stricter exception on top of the order
+```
+
+A module that belongs to a **more-outer** layer than the file's own layer is an
+*outward dependency* and fails. Rules resolve in this order:
+
+1. `alwaysAllow` → allowed
+2. same layer (intra-layer import) → allowed
+3. explicit **`deny`** → violation (forces it, even on an inward import);
+   explicit **`allow`** → allowed (exempts it, even from an outward violation)
+4. `dependencyOrder`: importing a more-outer layer → violation
+5. a module in no layer (third-party framework) → allowed by default
+
+`allow`/`deny` keep working on their own when `dependencyOrder` is unset (the
+v0.1.0 behaviour), so existing configs are unchanged. A module may belong to at
+most one layer, and every `dependencyOrder` name must match a declared layer —
+both are checked before linting.
 
 ## Run
 

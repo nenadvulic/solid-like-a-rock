@@ -15,6 +15,37 @@ final class IntegrationTests: XCTestCase {
         return url.path
     }
 
+    /// Same sample, expressed with the v0.1.5 model: a single `dependencyOrder`
+    /// derives the outward-dependency violations, and one explicit `deny`
+    /// exception adds the stricter DIP rule (Presentation must not reach
+    /// Infrastructure, even though that is technically an inward dependency).
+    func testCleanArchSampleViaDependencyOrder() throws {
+        let root = try sampleRoot()
+        let config = Configuration(
+            alwaysAllow: ["Foundation"],
+            layers: [
+                LayerRule(name: "Domain", paths: [root + "/Sources/Domain"]),
+                LayerRule(name: "Application", paths: [root + "/Sources/Application"]),
+                LayerRule(name: "Infrastructure", paths: [root + "/Sources/Infrastructure"]),
+                LayerRule(name: "Presentation", paths: [root + "/Sources/Presentation"],
+                          deny: ["Infrastructure"]),
+            ],
+            dependencyOrder: ["Domain", "Application", "Infrastructure", "Presentation"]
+        )
+        try config.validate()
+
+        let violations = try Linter(config: config).lint(files: swiftFiles(under: root + "/Sources"))
+        let byFile = Dictionary(grouping: violations, by: { ($0.file as NSString).lastPathComponent })
+
+        XCTAssertEqual(violations.count, 3, "got: \(violations.map(\.diagnostic))")
+        // Application → Infrastructure: derived outward dependency.
+        XCTAssertEqual(byFile["BadUseCase.swift"]?.first?.reason, .outwardDependency)
+        // Infrastructure → Presentation: derived outward dependency.
+        XCTAssertEqual(byFile["BadGateway.swift"]?.first?.reason, .outwardDependency)
+        // Presentation → Infrastructure: forced by the explicit deny exception.
+        XCTAssertEqual(byFile["LeakyView.swift"]?.first?.reason, .deniedImport)
+    }
+
     func testCleanArchSampleHasExactlyThreeViolations() throws {
         let root = try sampleRoot()
         let config = try Configuration.load(from: root + "/.solid.yml")

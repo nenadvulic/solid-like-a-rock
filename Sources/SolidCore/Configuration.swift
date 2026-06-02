@@ -95,4 +95,32 @@ public struct Configuration: Decodable, Equatable {
         let text = try String(contentsOfFile: path, encoding: .utf8)
         return try YAMLDecoder().decode(Configuration.self, from: text)
     }
+
+    /// Check structural invariants that would otherwise make rule resolution
+    /// ambiguous. Call after loading, before linting.
+    public func validate() throws {
+        // No module may be owned by more than one layer (resolution must be 1:1).
+        var owners: [String: [String]] = [:]
+        for layer in layers {
+            for module in layer.modules {
+                owners[module, default: []].append(layer.name)
+            }
+        }
+        for (module, layerNames) in owners where layerNames.count > 1 {
+            throw ConfigurationError.duplicateModule(module, layerNames)
+        }
+        // Every name in dependencyOrder must refer to a declared layer.
+        let known = Set(layers.map(\.name))
+        for name in dependencyOrder where !known.contains(name) {
+            throw ConfigurationError.unknownLayerInOrder(name)
+        }
+    }
+}
+
+/// Errors raised by `Configuration.validate()`.
+public enum ConfigurationError: Error, Equatable {
+    /// A module is declared by more than one layer (with the owning layer names).
+    case duplicateModule(String, [String])
+    /// `dependencyOrder` references a layer name that no layer declares.
+    case unknownLayerInOrder(String)
 }

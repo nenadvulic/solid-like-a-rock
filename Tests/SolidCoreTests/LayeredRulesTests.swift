@@ -122,4 +122,30 @@ final class LayeredRulesTests: XCTestCase {
         let imp = ImportRef(module: "PresUI", fullPath: "PresUI", line: 4)
         XCTAssertNil(linter.check(imp, in: cfg.layers[0], file: "Sources/Domain/Thing.swift"))
     }
+
+    // MARK: Validation
+
+    func testValidatePassesOnValidConfig() throws {
+        XCTAssertNoThrow(try orderedConfig().validate())
+    }
+
+    func testValidateThrowsWhenModuleClaimedByTwoLayers() {
+        let cfg = Configuration(layers: [
+            LayerRule(name: "A", paths: ["a/**"], modules: ["Shared", "AOnly"]),
+            LayerRule(name: "B", paths: ["b/**"], modules: ["Shared", "BOnly"]),
+        ])
+        XCTAssertThrowsError(try cfg.validate()) { error in
+            XCTAssertEqual(error as? ConfigurationError, .duplicateModule("Shared", ["A", "B"]))
+        }
+    }
+
+    func testValidateThrowsOnUnknownLayerInDependencyOrder() {
+        let cfg = Configuration(
+            layers: [LayerRule(name: "Domain", paths: ["d/**"])],
+            dependencyOrder: ["Domain", "Ghost"]
+        )
+        XCTAssertThrowsError(try cfg.validate()) { error in
+            XCTAssertEqual(error as? ConfigurationError, .unknownLayerInOrder("Ghost"))
+        }
+    }
 }
