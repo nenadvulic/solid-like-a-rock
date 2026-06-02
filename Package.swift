@@ -36,7 +36,11 @@ let package = Package(
         ),
         .testTarget(
             name: "SolidCoreTests",
-            dependencies: ["SolidCore"]
+            dependencies: ["SolidCore"],
+            // `.copy` treats the whole tree as a resource bundle, so the sample
+            // `.swift` files are NOT compiled into the test target — they're only
+            // read back as text fixtures via `Bundle.module` at runtime.
+            resources: [.copy("Fixtures")]
         ),
     ]
 )

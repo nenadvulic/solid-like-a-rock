@@ -1,0 +1,46 @@
+# .solid.yml — Clean Architecture (4 layers)
+#
+# Dependency rule: dependencies point INWARD.
+#
+#     Presentation ─┐
+#                   ├─▶ Application ─▶ Domain
+#   Infrastructure ─┘                 (innermost, pure)
+#
+# - Domain        : core business model + protocols. Depends on nothing.
+# - Application   : use cases / workflow orchestration. Depends only on Domain.
+# - Infrastructure: DB, external APIs, persistence. Implements Domain/Application
+#                   protocols (DIP). May use any lib, but never reaches the UI.
+# - Presentation  : UI / controllers / API endpoints. Talks to Application &
+#                   Domain abstractions — never to Infrastructure directly.
+
+# Cross-cutting / system modules, allowed in every layer.
+alwaysAllow:
+  - Foundation
+
+layers:
+  # ---- Inner layers: WHITELIST (strict purity) ----------------------------
+  - name: Domain
+    paths:
+      - Sources/Domain
+    allow: []                 # ONLY Foundation. The dependency-free core.
+
+  - name: Application
+    paths:
+      - Sources/Application
+    allow:
+      - Domain                # orchestrates Domain; defines protocols Infra implements
+      # add Combine here if your use cases are reactive
+
+  # ---- Outer layers: BLACKLIST (forbid the wrong boundary) ----------------
+  - name: Infrastructure
+    paths:
+      - Sources/Infrastructure
+    deny:
+      - Presentation          # implements inner protocols; must never import the UI
+      # (importing Domain / Application is fine — that's the inward direction)
+
+  - name: Presentation
+    paths:
+      - Sources/Presentation
+    deny:
+      - Infrastructure        # THE key DIP boundary: UI must not reach into DB/network
