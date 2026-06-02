@@ -6,6 +6,12 @@
 #
 # Domain is the innermost layer and must not know about anything else.
 
+# Path fragments to skip entirely (dependencies, build artefacts, …).
+exclude:
+  - /.build/
+  - /Pods/
+  - checkouts
+
 # Modules every layer may always import (system frameworks, etc.).
 alwaysAllow:
   - Foundation

@@ -12,6 +12,10 @@ struct SolidCommand: ParsableCommand {
     @Option(name: .shortAndLong, help: "Path to the YAML config file.")
     var config: String = ".solid.yml"
 
+    @Option(name: .shortAndLong, parsing: .upToNextOption,
+            help: "Path fragments to skip (e.g. .build Pods checkouts). Added to the config's `exclude`.")
+    var exclude: [String] = []
+
     @Argument(help: "Directories or .swift files to scan. Defaults to the current directory.")
     var paths: [String] = ["."]
 
@@ -25,13 +29,14 @@ struct SolidCommand: ParsableCommand {
         }
 
         let linter = Linter(config: configuration)
+        let excludes = configuration.exclude + exclude
 
         var files: [String] = []
         for path in paths {
             var isDirectory: ObjCBool = false
             if FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory), isDirectory.boolValue {
-                files += swiftFiles(under: path)
-            } else if path.hasSuffix(".swift") {
+                files += swiftFiles(under: path, excluding: excludes)
+            } else if path.hasSuffix(".swift"), !excludes.contains(where: { path.contains($0) }) {
                 files.append(path)
             }
         }

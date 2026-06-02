@@ -35,21 +35,29 @@ public struct Configuration: Decodable, Equatable {
     /// Ordered list of layers. The FIRST layer whose path matches a file wins,
     /// so list more specific paths before broader ones.
     public let layers: [LayerRule]
+    /// Path fragments that exclude a file from scanning entirely. Any file whose
+    /// path contains one of these substrings is skipped before layer matching —
+    /// use it to keep dependencies and build artefacts (`.build`, `Pods`,
+    /// `checkouts`, …) out of the analysis.
+    public let exclude: [String]
 
-    public init(alwaysAllow: [String] = [], layers: [LayerRule]) {
+    public init(alwaysAllow: [String] = [], layers: [LayerRule], exclude: [String] = []) {
         self.alwaysAllow = alwaysAllow
         self.layers = layers
+        self.exclude = exclude
     }
 
     enum CodingKeys: String, CodingKey {
         case alwaysAllow
         case layers
+        case exclude
     }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         self.alwaysAllow = (try? c.decode([String].self, forKey: .alwaysAllow)) ?? []
         self.layers = try c.decode([LayerRule].self, forKey: .layers)
+        self.exclude = (try? c.decode([String].self, forKey: .exclude)) ?? []
     }
 
     /// Load and decode a configuration from a YAML file on disk.

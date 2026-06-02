@@ -34,6 +34,12 @@ swift run solid-like-a-rock --config .solid.yml Sources
 Create a `.solid.yml` at your project root (see the included example):
 
 ```yaml
+# Skip dependencies and build artefacts (substring match on the full path).
+exclude:
+  - /.build/
+  - /Pods/
+  - checkouts
+
 alwaysAllow:
   - Foundation
   - Combine
@@ -55,6 +61,10 @@ layers:
   Use this for "this layer must not reach across to that one" rules.
 - A file is assigned to the **first** layer whose `paths` substring matches it,
   so list more specific paths first.
+- **`exclude`** drops any file whose path contains one of these fragments before
+  layer matching — essential for monorepos that vendor dependencies (`.build`,
+  `Pods`, SwiftPM `checkouts`). You can also pass them on the CLI:
+  `solid-like-a-rock --exclude .build Pods -- Sources`.
 
 ## Run
 
