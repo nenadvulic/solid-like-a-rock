@@ -10,11 +10,15 @@ public struct ImportRef: Equatable {
     public let fullPath: String
     /// 1-based line number of the import in the source file.
     public let line: Int
+    /// If the import carries a `// solid:ignore <reason>` directive (same line or
+    /// the line above), the captured reason. `nil` means no suppression.
+    public let ignoreReason: String?
 
-    public init(module: String, fullPath: String, line: Int) {
+    public init(module: String, fullPath: String, line: Int, ignoreReason: String? = nil) {
         self.module = module
         self.fullPath = fullPath
         self.line = line
+        self.ignoreReason = ignoreReason
     }
 }
 
@@ -38,14 +42,42 @@ public final class ImportCollector: SyntaxVisitor {
         // versions and avoids depending on the exact SourceLocationConverter init label.
         let location = node.startLocation(converter: converter)
 
+        // A `// solid:ignore <reason>` may sit on the same line (trailing trivia)
+        // or just above the import (leading trivia).
+        let reason = Self.ignoreReason(in: node.leadingTrivia)
+            ?? Self.ignoreReason(in: node.trailingTrivia)
+
         imports.append(
             ImportRef(
                 module: module,
                 fullPath: components.joined(separator: "."),
-                line: location.line
+                line: location.line,
+                ignoreReason: reason
             )
         )
         return .skipChildren
+    }
+
+    /// Extract the reason from a `solid:ignore <reason>` directive found in any
+    /// comment of the given trivia. Returns `nil` if absent or if no (non-empty)
+    /// reason follows the directive — the reason is mandatory.
+    static func ignoreReason(in trivia: Trivia) -> String? {
+        for piece in trivia {
+            let text: String
+            switch piece {
+            case let .lineComment(c), let .blockComment(c),
+                 let .docLineComment(c), let .docBlockComment(c):
+                text = c
+            default:
+                continue
+            }
+            guard let range = text.range(of: "solid:ignore") else { continue }
+            var reason = String(text[range.upperBound...])
+            // Trim comment delimiters and whitespace around the reason.
+            reason = reason.trimmingCharacters(in: CharacterSet(charactersIn: " \t*/"))
+            if !reason.isEmpty { return reason }
+        }
+        return nil
     }
 
     /// Convenience for parsing imports straight from a source string (used in tests).

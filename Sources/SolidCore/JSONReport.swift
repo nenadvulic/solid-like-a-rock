@@ -4,7 +4,7 @@ import Foundation
 /// violation with stable keys. Intended for tooling (Danger, dashboards, …)
 /// that needs to consume results without parsing the human diagnostic text.
 ///
-/// Each element: `{ file, line, module, layer, reason, targetLayer?, message }`.
+/// Each element: `{ file, line, module, layer, reason, severity, targetLayer?, message }`.
 public func renderJSON(_ violations: [Violation]) throws -> String {
     let objects = violations.map { v -> [String: Any] in
         var dict: [String: Any] = [
@@ -13,6 +13,7 @@ public func renderJSON(_ violations: [Violation]) throws -> String {
             "module": v.importedModule,
             "layer": v.layer,
             "reason": v.reason.rawValue,
+            "severity": v.severity.rawValue,
             "message": v.message,
         ]
         if let target = v.targetLayer { dict["targetLayer"] = target }

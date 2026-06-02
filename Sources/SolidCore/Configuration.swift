@@ -14,6 +14,13 @@ import Yams
 ///   that one" rules, e.g. Presentation must not import Data.
 ///
 /// `allow` and `deny` can be combined; `deny` is checked first.
+/// How a violation should be reported: a `warning` does not fail the build,
+/// an `error` does.
+public enum Severity: String, Decodable, Equatable {
+    case warning
+    case error
+}
+
 public struct LayerRule: Decodable, Equatable {
     public let name: String
     /// The modules that belong to this layer. When omitted in YAML it defaults
@@ -24,18 +31,22 @@ public struct LayerRule: Decodable, Equatable {
     public let paths: [String]
     public let allow: [String]?
     public let deny: [String]?
+    /// Severity for violations attributed to this layer. Defaults to `.error`.
+    public let severity: Severity
 
     public init(name: String, paths: [String], modules: [String]? = nil,
-                allow: [String]? = nil, deny: [String]? = nil) {
+                allow: [String]? = nil, deny: [String]? = nil,
+                severity: Severity = .error) {
         self.name = name
         self.modules = modules ?? [name]
         self.paths = paths
         self.allow = allow
         self.deny = deny
+        self.severity = severity
     }
 
     enum CodingKeys: String, CodingKey {
-        case name, modules, paths, allow, deny
+        case name, modules, paths, allow, deny, severity
     }
 
     public init(from decoder: Decoder) throws {
@@ -46,6 +57,7 @@ public struct LayerRule: Decodable, Equatable {
         self.paths = try c.decode([String].self, forKey: .paths)
         self.allow = try? c.decode([String].self, forKey: .allow)
         self.deny = try? c.decode([String].self, forKey: .deny)
+        self.severity = (try? c.decode(Severity.self, forKey: .severity)) ?? .error
     }
 }
 
