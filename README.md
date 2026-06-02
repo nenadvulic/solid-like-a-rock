@@ -122,6 +122,61 @@ Sources/Presentation/HomeView.swift:5: error: SolidLikeARock: layer 'Presentatio
 Exit code is non-zero when violations are found — drop it straight into a CI step
 or an Xcode "Run Script" build phase.
 
+## Integrate into an existing project
+
+### Xcode — Run Script build phase
+
+Select your app target → **Build Phases** → **+** → **New Run Script Phase**,
+then paste:
+
+```bash
+if command -v solid-like-a-rock >/dev/null; then
+  solid-like-a-rock --config "$SRCROOT/.solid.yml" "$SRCROOT/Sources"
+else
+  echo "warning: solid-like-a-rock not installed — skipping architecture lint"
+fi
+```
+
+Because the output uses the `file:line: error:` format, violations show up as
+**red errors inline in the editor** and fail the build. Drop the `command -v`
+guard if you'd rather make the tool mandatory for everyone.
+
+### CI — download the released binary (recommended)
+
+Each tagged release publishes a prebuilt macOS binary, so CI doesn't pay the
+SwiftSyntax build cost:
+
+```yaml
+# .github/workflows/architecture.yml
+name: Architecture
+on: [push, pull_request]
+jobs:
+  lint:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install solid-like-a-rock
+        run: |
+          curl -fsSL -o slr.tar.gz \
+            https://github.com/nenadvulic/solid-like-a-rock/releases/latest/download/solid-like-a-rock-macos-arm64.tar.gz
+          tar -xzf slr.tar.gz && sudo mv solid-like-a-rock /usr/local/bin/
+      - name: Lint import boundaries
+        run: solid-like-a-rock --config .solid.yml Sources
+```
+
+### CI — run from source, nothing to install
+
+If your project is already a SwiftPM package (or you just want it for free in
+CI), build and run the tool straight from a checkout — no binary to manage:
+
+```bash
+git clone --depth 1 https://github.com/nenadvulic/solid-like-a-rock /tmp/slr
+swift run --package-path /tmp/slr solid-like-a-rock --config .solid.yml Sources
+```
+
+Either way the non-zero exit code fails the job, so a layer violation blocks the
+merge the same way a failing test would.
+
 ## Example project
 
 A runnable 4-layer Clean Architecture sample lives at
