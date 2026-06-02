@@ -215,7 +215,7 @@ fetch a pinned release binary into a gitignored cache. Add a
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION="v0.2.0"
+VERSION="v0.3.0"
 # `uname -m` reports x86_64 under Rosetta; ask the kernel for the real CPU.
 ARCH="$(uname -m)"
 [[ "$(sysctl -n hw.optional.arm64 2>/dev/null)" == "1" ]] && ARCH="arm64"
@@ -289,7 +289,7 @@ locally and in CI:
 ```swift
 // your Package.swift
 dependencies: [
-    .package(url: "https://github.com/nenadvulic/solid-like-a-rock", from: "0.1.5"),
+    .package(url: "https://github.com/nenadvulic/solid-like-a-rock", from: "0.3.0"),
 ],
 ```
 
