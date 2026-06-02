@@ -7,6 +7,9 @@ public struct Violation: Equatable {
         case deniedImport
         /// The layer uses whitelist mode and the module is not on its `allow` list.
         case notAllowedImport
+        /// `dependencyOrder` is set and the layer imports a more-outer layer
+        /// (a dependency that points outward instead of inward).
+        case outwardDependency
     }
 
     public let file: String
@@ -14,13 +17,17 @@ public struct Violation: Equatable {
     public let importedModule: String
     public let layer: String
     public let reason: Reason
+    /// For `.outwardDependency`, the more-outer layer the imported module belongs to.
+    public let targetLayer: String?
 
-    public init(file: String, line: Int, importedModule: String, layer: String, reason: Reason) {
+    public init(file: String, line: Int, importedModule: String, layer: String,
+                reason: Reason, targetLayer: String? = nil) {
         self.file = file
         self.line = line
         self.importedModule = importedModule
         self.layer = layer
         self.reason = reason
+        self.targetLayer = targetLayer
     }
 
     /// A human-readable explanation of the violation.
@@ -30,6 +37,9 @@ public struct Violation: Equatable {
             return "layer '\(layer)' must not import '\(importedModule)'"
         case .notAllowedImport:
             return "layer '\(layer)' is not allowed to import '\(importedModule)'"
+        case .outwardDependency:
+            let target = targetLayer.map { " (outer layer '\($0)')" } ?? ""
+            return "layer '\(layer)' must not depend outward on '\(importedModule)'\(target)"
         }
     }
 
