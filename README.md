@@ -74,6 +74,46 @@ Sources/Presentation/HomeView.swift:5: error: SolidLikeARock: layer 'Presentatio
 Exit code is non-zero when violations are found — drop it straight into a CI step
 or an Xcode "Run Script" build phase.
 
+## Example project
+
+A runnable 4-layer Clean Architecture sample lives at
+`Tests/SolidCoreTests/Fixtures/CleanArchSample` and doubles as the integration
+test for this tool. It contains five well-behaved files and three files that
+intentionally cross a boundary:
+
+```
+CleanArchSample/
+├─ .solid.yml
+└─ Sources/
+   ├─ Domain/          User.swift, UserRepository.swift          # pure, imports only Foundation
+   ├─ Application/      FetchUserUseCase.swift                    # ✅ imports Domain
+   │                    BadUseCase.swift                          # ❌ imports Infrastructure
+   ├─ Infrastructure/   CoreDataUserStore.swift                   # ✅ imports Domain (inward)
+   │                    BadGateway.swift                          # ❌ imports Presentation
+   └─ Presentation/     UserView.swift                            # ✅ SwiftUI + Application
+                        LeakyView.swift                           # ❌ imports Infrastructure
+```
+
+Run it:
+
+```bash
+cd Tests/SolidCoreTests/Fixtures/CleanArchSample
+solid-like-a-rock --config .solid.yml Sources
+```
+
+Expected output — exactly three violations, exit code 1:
+
+```
+Sources/Application/BadUseCase.swift:2: error: SolidLikeARock: layer 'Application' is not allowed to import 'Infrastructure'
+Sources/Infrastructure/BadGateway.swift:2: error: SolidLikeARock: layer 'Infrastructure' must not import 'Presentation'
+Sources/Presentation/LeakyView.swift:2: error: SolidLikeARock: layer 'Presentation' must not import 'Infrastructure'
+❌ SolidLikeARock: 3 violation(s) found.
+```
+
+`BadUseCase` trips the whitelist (`Application` may import only `Domain`), while
+`BadGateway` and `LeakyView` trip deny-lists — the latter being the key
+Dependency Inversion boundary: the UI must never reach into `Infrastructure`.
+
 ## Why SwiftSyntax instead of regex?
 
 A regex matches `import` inside strings, comments, and `#if` blocks. SwiftSyntax
