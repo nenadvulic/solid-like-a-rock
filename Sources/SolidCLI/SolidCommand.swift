@@ -16,6 +16,13 @@ struct SolidCommand: ParsableCommand {
             help: "Path fragments to skip (e.g. .build Pods checkouts). Added to the config's `exclude`.")
     var exclude: [String] = []
 
+    enum OutputFormat: String, ExpressibleByArgument {
+        case text, json
+    }
+
+    @Option(name: .shortAndLong, help: "Output format: text (default) or json (for tooling like Danger).")
+    var format: OutputFormat = .text
+
     @Argument(help: "Directories or .swift files to scan. Defaults to the current directory.")
     var paths: [String] = ["."]
 
@@ -49,13 +56,22 @@ struct SolidCommand: ParsableCommand {
         }
 
         let violations = try linter.lint(files: files)
+            .sorted(by: { ($0.file, $0.line) < ($1.file, $1.line) })
+
+        // JSON mode: emit a pure, parseable array on stdout (no banner lines),
+        // but keep the exit code reflecting whether violations were found.
+        if format == .json {
+            print(try renderJSON(violations))
+            if !violations.isEmpty { throw ExitCode.failure }
+            return
+        }
 
         guard !violations.isEmpty else {
             print("✅ SolidLikeARock: no import violations (\(files.count) file(s) checked).")
             return
         }
 
-        for violation in violations.sorted(by: { ($0.file, $0.line) < ($1.file, $1.line) }) {
+        for violation in violations {
             print(violation.diagnostic)
         }
         print("❌ SolidLikeARock: \(violations.count) violation(s) found.")

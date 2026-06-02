@@ -2,7 +2,7 @@ import Foundation
 
 /// A single rule violation found in a source file.
 public struct Violation: Equatable {
-    public enum Reason: Equatable {
+    public enum Reason: String, Equatable {
         /// The module appears on the layer's `deny` list.
         case deniedImport
         /// The layer uses whitelist mode and the module is not on its `allow` list.

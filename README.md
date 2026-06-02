@@ -203,6 +203,23 @@ swift package solid-lint
 The plugin runs read-only and exits non-zero when violations are found, so it
 drops straight into a CI step.
 
+### Danger (comment on the PR diff)
+
+Pass `--format json` to get a machine-readable array instead of the text
+diagnostics — ideal for feeding [Danger](https://danger.systems):
+
+```bash
+solid-like-a-rock --format json --config .solid.yml Sources
+# [ { "file": "...", "line": 5, "module": "NetworkProvider",
+#     "layer": "Presentation", "reason": "deniedImport", "message": "..." }, ... ]
+```
+
+A ready-to-use **Danger Swift** example lives at
+[`examples/Dangerfile.swift`](examples/Dangerfile.swift). It lints only the
+files the PR touches and posts each violation as an inline comment on the exact
+line — so contributors are flagged for what they introduce, not for pre-existing
+debt. (The exit code still reflects whether violations were found.)
+
 ## Example project
 
 A runnable 4-layer Clean Architecture sample lives at
