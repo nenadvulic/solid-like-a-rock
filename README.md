@@ -145,6 +145,45 @@ Because the output uses the `file:line: error:` format, violations show up as
 **red errors inline in the editor** and fail the build. Drop the `command -v`
 guard if you'd rather make the tool mandatory for everyone.
 
+#### Zero-install variant (auto-download a pinned binary)
+
+If you don't want every contributor to install the tool, have the build phase
+fetch a pinned release binary into a gitignored cache. Add a
+`scripts/lint-architecture.sh` to your repo:
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+VERSION="v0.2.0"
+# `uname -m` reports x86_64 under Rosetta; ask the kernel for the real CPU.
+ARCH="$(uname -m)"
+[[ "$(sysctl -n hw.optional.arm64 2>/dev/null)" == "1" ]] && ARCH="arm64"
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+BIN="$ROOT/.tools/solid-like-a-rock-$VERSION"
+
+if [[ ! -x "$BIN" ]]; then
+  mkdir -p "$ROOT/.tools"; tmp="$(mktemp -d)"
+  url="https://github.com/<owner>/solid-like-a-rock/releases/download/$VERSION/solid-like-a-rock-macos-$ARCH.tar.gz"
+  if ! curl -fsSL "$url" -o "$tmp/slr.tar.gz" 2>/dev/null; then
+    echo "warning: could not download solid-like-a-rock — skipping architecture lint"; exit 0
+  fi
+  tar -xzf "$tmp/slr.tar.gz" -C "$tmp"; mv "$tmp/solid-like-a-rock" "$BIN"; chmod +x "$BIN"
+fi
+
+exec "$BIN" --config "$ROOT/.solid.yml" "$ROOT/Sources"
+```
+
+Then point the Run Script phase at it — `"${SRCROOT}/../scripts/lint-architecture.sh"`
+(adjust the relative path to your layout). Add `.tools/` to `.gitignore`.
+
+> Two gotchas: the binary is pinned to a version and cached, so the network is
+> only hit once (subsequent builds are offline). And if Xcode's
+> `ENABLE_USER_SCRIPT_SANDBOXING` is `YES`, that first download is blocked —
+> run the script once from a terminal to seed the cache, or set it to `NO` for
+> the target.
+
 ### CI — download the released binary (recommended)
 
 Each tagged release publishes a prebuilt macOS binary, so CI doesn't pay the
