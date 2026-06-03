@@ -11,3 +11,6 @@ DerivedData/
 
 # macOS
 .DS_Store
+
+# Locally-built artifactbundle (test/dev; distribution uses a release URL)
+artifacts/
