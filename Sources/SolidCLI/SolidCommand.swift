@@ -3,10 +3,19 @@ import Foundation
 import SolidCore
 
 @main
-struct SolidCommand: ParsableCommand {
+struct SolidLikeARock: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "solid-like-a-rock",
-        abstract: "Enforce architectural import rules in Swift code (SOLID / Clean Architecture boundaries)."
+        abstract: "Enforce architectural import rules in Swift code (SOLID / Clean Architecture boundaries).",
+        subcommands: [Lint.self, Init.self],
+        defaultSubcommand: Lint.self   // backwards compatible: bare invocation lints
+    )
+}
+
+struct Lint: ParsableCommand {
+    static let configuration = CommandConfiguration(
+        commandName: "lint",
+        abstract: "Check imports against the architecture rules in .solid.yml."
     )
 
     @Option(name: .shortAndLong, help: "Path to the YAML config file. If omitted, .solid.yml is discovered by walking up from the current directory.")
@@ -56,7 +65,7 @@ struct SolidCommand: ParsableCommand {
         do {
             try configuration.validate()
         } catch {
-            FileHandle.standardError.write(Data("SolidLikeARock: invalid config '\(config)': \(error)\n".utf8))
+            FileHandle.standardError.write(Data("SolidLikeARock: invalid config '\(configPath)': \(error)\n".utf8))
             throw ExitCode.failure
         }
 

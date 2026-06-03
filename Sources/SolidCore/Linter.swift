@@ -42,9 +42,12 @@ public final class Linter {
     }
 
     /// A file matches a path pattern if the glob matches it directly, or if the
-    /// pattern names a containing directory (`pattern/**`).
+    /// pattern names a containing directory (`pattern/**`). A trailing slash is
+    /// stripped first so `Sources/Domain/` behaves like `Sources/Domain` (and
+    /// doesn't produce a `//` when the `/**` suffix is appended).
     private func pathMatches(_ file: String, pattern: String) -> Bool {
-        globMatch(file, pattern: pattern) || globMatch(file, pattern: pattern + "/**")
+        let base = pattern.hasSuffix("/") ? String(pattern.dropLast()) : pattern
+        return globMatch(file, pattern: base) || globMatch(file, pattern: base + "/**")
     }
 
     /// Evaluate a single import against a layer's rules.

@@ -33,9 +33,37 @@ Or run without installing:
 swift run solid-like-a-rock --config .solid.yml Sources
 ```
 
+## Generate a config (`init`)
+
+Writing `.solid.yml` by hand on an existing project is tedious. `init` generates
+a starter config by analysing the project's **real inter-module import graph** —
+deterministic, no LLM. It emits one layer per local module; you regroup/rename
+them into business layers afterwards.
+
+```bash
+# Freeze the current architecture (best for legacy adoption):
+solid-like-a-rock init --freeze ./MyApp
+
+# Heuristic layering proposal, to review:
+solid-like-a-rock init ./MyApp
+
+# Multi-package project with a non-standard modules directory:
+solid-like-a-rock init --packages-dir Modules .
+```
+
+- **`--freeze`** — for each module, deny every *other* local module it doesn't
+  import today. Result: **zero violations now**, and the linter bites the moment
+  a **new** cross-module dependency appears. The fastest way onto a living codebase.
+- **default (heuristic)** — ranks modules by depth in the import graph and denies
+  only *outward* dependencies (toward more-outer layers). More permissive; review it.
+
+It auto-detects the layout (`Packages/<M>/Sources` or `Sources/<M>`), scans only
+sources (never `Tests/`), ignores system/third-party imports, and writes a sorted,
+deterministic, commented file. It won't overwrite an existing file without `--force`.
+
 ## Configure
 
-Create a `.solid.yml` at your project root (see the included example):
+Create a `.solid.yml` at your project root (or generate one with [`init`](#generate-a-config-init)) — see the included example:
 
 ```yaml
 # Skip dependencies and build artefacts (substring match on the full path).

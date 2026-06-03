@@ -20,6 +20,14 @@ final class LayerMatchingTests: XCTestCase {
         XCTAssertNil(l.layer(for: "/proj/Sources/DomainHelpers/Helper.swift"))
     }
 
+    func testTrailingSlashFragmentMatchesFilesUnder() {
+        // `init` emits paths with a trailing slash (to avoid prefix collisions);
+        // the linter must still match files inside that directory.
+        let l = linter([LayerRule(name: "Domain", paths: ["Sources/Domain/"])])
+        XCTAssertEqual(l.layer(for: "/p/Sources/Domain/User.swift")?.name, "Domain")
+        XCTAssertNil(l.layer(for: "/p/Sources/DomainHelpers/Helper.swift"))
+    }
+
     func testExplicitGlobMatches() {
         let l = linter([LayerRule(name: "Presentation", paths: ["SwiftUI/PresentationLayer/**"])])
         XCTAssertEqual(
