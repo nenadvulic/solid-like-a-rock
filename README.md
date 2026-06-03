@@ -292,8 +292,13 @@ jobs:
             https://github.com/nenadvulic/solid-like-a-rock/releases/latest/download/solid-like-a-rock-macos-arm64.tar.gz
           tar -xzf slr.tar.gz && sudo mv solid-like-a-rock /usr/local/bin/
       - name: Lint import boundaries
-        run: solid-like-a-rock --config .solid.yml Sources
+        run: solid-like-a-rock --reporter github --config .solid.yml Sources
 ```
+
+`--reporter github` emits `::error file=…,line=…::` workflow commands, so each
+violation shows up as an **inline annotation** on the pull request (not just in
+the log). Reporters: `text` (default, Xcode/CI-friendly `file:line: error:`),
+`json` (tooling/Danger), `github` (PR annotations). `--format`/`-f` is a kept alias.
 
 ### CI — run from source, nothing to install
 
