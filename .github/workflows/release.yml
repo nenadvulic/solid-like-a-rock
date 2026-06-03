@@ -29,10 +29,22 @@ jobs:
           shasum -a 256 "$TARBALL" > "$TARBALL.sha256"
           echo "TARBALL=$TARBALL" >> "$GITHUB_ENV"
 
+      - name: Package artifactbundle (for the SwiftPM build-tool plugin)
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          scripts/make-artifactbundle.sh "$VERSION" .
+          BUNDLE_ZIP="solid-like-a-rock.artifactbundle.zip"
+          ditto -c -k --keepParent solid-like-a-rock.artifactbundle "$BUNDLE_ZIP"
+          # SwiftPM's own checksum, used by binaryTarget(url:checksum:).
+          swift package compute-checksum "$BUNDLE_ZIP" > "$BUNDLE_ZIP.checksum"
+          echo "BUNDLE_ZIP=$BUNDLE_ZIP" >> "$GITHUB_ENV"
+
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             ${{ env.TARBALL }}
             ${{ env.TARBALL }}.sha256
+            ${{ env.BUNDLE_ZIP }}
+            ${{ env.BUNDLE_ZIP }}.checksum
           generate_release_notes: true
