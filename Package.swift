@@ -15,6 +15,8 @@ let package = Package(
         // Exposed so any package depending on SolidLikeARock can run
         // `swift package solid-lint` — architecture linting for free in CI.
         .plugin(name: "SolidLint", targets: ["SolidLint"]),
+        // Build-tool plugin: lints automatically on every `swift build`.
+        .plugin(name: "SolidLintBuildTool", targets: ["SolidLintBuildTool"]),
     ],
     dependencies: [
         .package(url: "https://github.com/swiftlang/swift-syntax.git", "600.0.0"..<"603.0.0"),
@@ -59,6 +61,18 @@ let package = Package(
                 // Read-only: no `permissions` needed — the plugin only parses sources.
             ),
             dependencies: [.target(name: "solid-like-a-rock")]
+        ),
+        .plugin(
+            name: "SolidLintBuildTool",
+            capability: .buildTool(),
+            // A prebuild command can't build its tool from source, so it uses the
+            // prebuilt binary from the published artifactbundle.
+            dependencies: [.target(name: "SolidLikeARockBinary")]
+        ),
+        .binaryTarget(
+            name: "SolidLikeARockBinary",
+            url: "https://github.com/nenadvulic/solid-like-a-rock/releases/download/v0.4.0/solid-like-a-rock.artifactbundle.zip",
+            checksum: "aafcdb893742fe1a7e2c25db982e581251ee631a1ca6bbad35c5193989e57837"
         ),
     ],
     // tools-version 6.0 is required so the command plugin can invoke the
