@@ -243,7 +243,7 @@ fetch a pinned release binary into a gitignored cache. Add a
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION="v0.3.0"
+VERSION="v0.4.1"
 # `uname -m` reports x86_64 under Rosetta; ask the kernel for the real CPU.
 ARCH="$(uname -m)"
 [[ "$(sysctl -n hw.optional.arm64 2>/dev/null)" == "1" ]] && ARCH="arm64"
@@ -322,7 +322,7 @@ locally and in CI:
 ```swift
 // your Package.swift
 dependencies: [
-    .package(url: "https://github.com/nenadvulic/solid-like-a-rock", from: "0.3.0"),
+    .package(url: "https://github.com/nenadvulic/solid-like-a-rock", from: "0.4.1"),
 ],
 ```
 
@@ -334,6 +334,30 @@ swift package solid-lint
 
 The plugin runs read-only and exits non-zero when violations are found, so it
 drops straight into a CI step.
+
+### SwiftPM build-tool plugin (lint on every build)
+
+For SwiftPM targets, apply the **build-tool plugin** to lint automatically as a
+prebuild step on every `swift build` (and in Xcode) — violations appear inline,
+no separate run-script. It uses a prebuilt binary from the release artifactbundle,
+so no compile-from-source cost:
+
+```swift
+// your Package.swift
+dependencies: [
+    .package(url: "https://github.com/nenadvulic/solid-like-a-rock", from: "0.4.1"),
+],
+targets: [
+    .target(
+        name: "MyLib",
+        plugins: [.plugin(name: "SolidLintBuildTool", package: "solid-like-a-rock")]
+    ),
+],
+```
+
+It reads `.solid.yml` from the package root (or discovers it) and fails the build
+on an error-level violation — so a layering regression breaks the build like a
+failing test would.
 
 ### Danger (comment on the PR diff)
 
