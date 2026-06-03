@@ -225,7 +225,7 @@ BIN="$ROOT/.tools/solid-like-a-rock-$VERSION"
 
 if [[ ! -x "$BIN" ]]; then
   mkdir -p "$ROOT/.tools"; tmp="$(mktemp -d)"
-  url="https://github.com/<owner>/solid-like-a-rock/releases/download/$VERSION/solid-like-a-rock-macos-$ARCH.tar.gz"
+  url="https://github.com/nenadvulic/solid-like-a-rock/releases/download/$VERSION/solid-like-a-rock-macos-$ARCH.tar.gz"
   if ! curl -fsSL "$url" -o "$tmp/slr.tar.gz" 2>/dev/null; then
     echo "warning: could not download solid-like-a-rock — skipping architecture lint"; exit 0
   fi
