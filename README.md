@@ -29,7 +29,7 @@ Domain  <-  Data  <-  Presentation
 
 ```bash
 git clone https://github.com/nenadvulic/solid-like-a-rock.git
-cd SolidLikeARock
+cd solid-like-a-rock
 swift build -c release
 cp .build/release/solid-like-a-rock /usr/local/bin/
 ```
@@ -67,6 +67,83 @@ solid-like-a-rock init --packages-dir Modules .
 It auto-detects the layout (`Packages/<M>/Sources` or `Sources/<M>`), scans only
 sources (never `Tests/`), ignores system/third-party imports, and writes a sorted,
 deterministic, commented file. It won't overwrite an existing file without `--force`.
+
+## Generate a config with AI
+
+If `init` doesn't cover your project layout — or you want a more tailored starting
+point — paste the prompt below into any AI assistant. It works for both SPM and
+plain Xcode/CocoaPods projects.
+
+> If you already ran `init`, paste its output alongside the prompt — the AI will
+> use it as a starting point and refine the layer groupings.
+
+```
+I want to set up solid-like-a-rock (https://github.com/nenadvulic/solid-like-a-rock),
+a Swift architecture linter. Please generate a .solid.yml config file for my project.
+
+1. Explore the source directory structure (list folders up to 3 levels deep).
+2. Sample `import` statements from Swift files in each main folder to understand
+   real dependencies.
+3. Identify the architectural layers (Domain, Data, Presentation, Application, etc.)
+   from the folder names and import patterns.
+4. Generate a .solid.yml with:
+   - `exclude` for .build/, Pods/, checkouts/, Tests/
+   - `alwaysAllow` for the system frameworks found in the imports
+   - One layer per architectural group, with `paths` globs and `deny`/`allow` rules
+     that enforce inward-pointing dependencies
+   - Use `dependencyOrder` if the project has clearly ordered layers
+5. Add a comment with the run command and the --write-baseline command for first use.
+
+My project is at: [PATH]
+```
+
+Replace `[PATH]` with your project root. If you already ran `solid-like-a-rock init`,
+paste its output at the end of the prompt.
+
+> **Xcode / CocoaPods projects (no SwiftPM modules):** `init` requires a SwiftPM
+> module structure to build the import graph. Plain Xcode targets are not
+> discoverable, so the command will report *no local modules found*. Write
+> `.solid.yml` by hand instead — map your source folders as layers and use
+> `deny` lists to enforce the boundaries you care about:
+>
+> ```yaml
+> exclude:
+>   - /Pods/
+>   - /.build/
+>
+> alwaysAllow:
+>   - Foundation
+>   - UIKit
+>   - SwiftUI
+>   - Combine
+>
+> layers:
+>   - name: Domain
+>     paths: [MyApp/Domain/**]
+>     allow: [Foundation]
+>
+>   - name: Data
+>     paths: [MyApp/Data/**]
+>     deny: [UIKit, SwiftUI]   # Data must never reach into the UI
+>
+>   - name: Presentation
+>     paths: [MyApp/Presentation/**]
+>     deny: [NetworkProvider, DataStore]   # UI goes through the Domain, not Data
+> ```
+>
+> Run it against your source tree:
+>
+> ```bash
+> solid-like-a-rock --config .solid.yml MyApp
+> ```
+>
+> If the project already has violations, capture a baseline first so CI only
+> fails on *new* ones:
+>
+> ```bash
+> solid-like-a-rock --write-baseline .solid-baseline.json --config .solid.yml MyApp
+> solid-like-a-rock --baseline .solid-baseline.json --config .solid.yml MyApp
+> ```
 
 ## Configure
 
