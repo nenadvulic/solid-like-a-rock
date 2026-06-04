@@ -1,48 +1,44 @@
-# SolidLikeARock — example configuration (v0.1.5 layered model)
+# .solid.yml — solid-like-a-rock linting itself (dogfood).
 #
-# Architectural rule: dependencies point INWARD.
+# This is the project's real, CI-enforced config — and doubles as the example
+# referenced from the README. Architecture: SolidCore is the pure engine
+# (SwiftSyntax parsing + Yams config, no CLI concerns); SolidCLI is the
+# ArgumentParser shell around it; Plugins are SwiftPM plugin glue.
+# Dependencies point inward:
 #
-#   Domain  <-  Application  <-  Infrastructure  <-  Presentation
-#
-# Declare the layer order once and let the tool derive the "no outward
-# dependency" rule; add allow/deny only for fine-grained exceptions.
+#   SolidCLI ─▶ SolidCore        (the engine never knows about the CLI)
+#   Plugins  ─▶ (PackagePlugin only)
 
-# Path fragments to skip entirely (dependencies, build artefacts, …).
+# Path fragments to skip entirely (dependencies, build artefacts, and the
+# test fixtures, which contain intentional violations).
 exclude:
   - /.build/
-  - /Pods/
-  - checkouts
+  - /checkouts/
+  - /Tests/
 
-# Modules every layer may always import (system frameworks, etc.).
+# Modules every layer may always import.
 alwaysAllow:
   - Foundation
-  - Combine
-
-# Innermost (index 0) to outermost. A layer may import its own and any
-# more-inner layer; importing a more-outer one is a violation.
-dependencyOrder: [Domain, Application, Infrastructure, Presentation]
 
 layers:
-  # A layer owns one or more modules (defaults to [name] when omitted) and is
-  # matched to files by `paths` globs (* within a segment, ** across segments).
-  - name: Domain
-    modules: [DomainModels, DomainServices]
-    paths:   [Sources/Domain/**, Sources/DomainServices/**]
+  # The engine: strict whitelist. Importing ArgumentParser (or anything
+  # CLI-related) here is an architecture regression and fails the build.
+  - name: Core
+    paths: [Sources/SolidCore/**]
+    allow:
+      - SwiftSyntax
+      - SwiftParser
+      - Yams
 
-  - name: Application
-    modules: [Application]
-    paths:   [Sources/Application/**]
+  # The CLI shell: composition root — the engine plus argument parsing.
+  - name: CLI
+    paths: [Sources/SolidCLI/**]
+    allow:
+      - SolidCore
+      - ArgumentParser
 
-  - name: Infrastructure
-    modules: [Infrastructure]
-    paths:   [Sources/Infrastructure/**]
-
-  - name: Presentation
-    modules: [Presentation]
-    paths:   [Sources/Presentation/**]
-    # Stricter-than-the-order exception: the UI must not reach Infrastructure
-    # directly, even though that is technically an inward dependency.
-    deny:    [Infrastructure]
-
-# Legacy mode (no dependencyOrder) still works: give each layer an explicit
-# `allow` (whitelist) or `deny` (blacklist) and rules apply per layer.
+  # SwiftPM plugins: only the plugin API.
+  - name: Plugins
+    paths: [Plugins/**]
+    allow:
+      - PackagePlugin

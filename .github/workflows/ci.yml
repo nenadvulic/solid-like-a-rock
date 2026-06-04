@@ -34,3 +34,7 @@ jobs:
 
       - name: Test
         run: swift test -v
+
+      # Dogfood: the linter enforces its own architecture (.solid.yml).
+      - name: Lint own architecture
+        run: .build/debug/solid-like-a-rock lint --config .solid.yml Sources Plugins
