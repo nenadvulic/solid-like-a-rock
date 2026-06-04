@@ -28,7 +28,7 @@ Domain  <-  Data  <-  Presentation
 ## Install
 
 ```bash
-git clone https://github.com/nenadvulic/SolidLikeARock.git
+git clone https://github.com/nenadvulic/solid-like-a-rock.git
 cd SolidLikeARock
 swift build -c release
 cp .build/release/solid-like-a-rock /usr/local/bin/
