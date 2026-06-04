@@ -513,6 +513,29 @@ A regex matches `import` inside strings, comments, and `#if` blocks. SwiftSyntax
 parses the actual grammar, so `let s = "import Secrets"` is correctly ignored and
 conditional imports are handled the same way the compiler sees them.
 
+## Performance
+
+Measured on a real project — [isowords](https://github.com/pointfreeco/isowords),
+Point-Free's heavily modularised SPM app (88 local modules):
+
+| | |
+|---|---|
+| Swift files scanned | 388 |
+| `init --freeze` (full import-graph analysis) | 0.24 s |
+| `lint` (median of 3 runs) | 1.63 s |
+| Machine | Apple M1 |
+
+Reproduce it yourself — one command, pinned to a fixed isowords commit:
+
+```bash
+scripts/benchmark.sh
+```
+
+The same run doubles as an integration example: `init --freeze` generates a
+ready-to-use `.solid.yml` for the whole project (one layer per module, zero
+violations on day one), so the linter bites only when a *new* cross-module
+dependency appears.
+
 ## License
 
 MIT
