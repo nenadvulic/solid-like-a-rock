@@ -16,12 +16,20 @@ CACHE_DIR="/tmp/slr-benchmark/isowords"
 RUNS=3
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-BIN="${1:-$ROOT/.build/release/solid-like-a-rock}"
 
 # --- Binary -----------------------------------------------------------------
-if [[ ! -x "$BIN" ]]; then
-  echo "→ building release binary…"
-  swift build -c release --package-path "$ROOT"
+# Resolution order: explicit argument > Homebrew/PATH install > local release
+# build (built on demand — slow, ~7 min of SwiftSyntax).
+if [[ $# -ge 1 ]]; then
+  BIN="$1"
+elif command -v solid-like-a-rock >/dev/null; then
+  BIN="$(command -v solid-like-a-rock)"
+else
+  BIN="$ROOT/.build/release/solid-like-a-rock"
+  if [[ ! -x "$BIN" ]]; then
+    echo "→ building release binary…"
+    swift build -c release --package-path "$ROOT"
+  fi
 fi
 
 # --- Checkout (cached, pinned) ----------------------------------------------
@@ -64,6 +72,7 @@ MEDIAN="$(printf '%s\n' "${TIMES[@]}" | sort -n | awk 'NR==2')"
 # --- Report -------------------------------------------------------------------
 echo
 echo "── solid-like-a-rock benchmark ─────────────────────────"
+echo "binary:        $BIN"
 echo "machine:       $(sysctl -n machdep.cpu.brand_string)"
 echo "project:       isowords @ ${ISOWORDS_SHA:0:12}"
 echo "swift files:   $FILES"

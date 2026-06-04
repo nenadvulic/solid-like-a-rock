@@ -521,9 +521,9 @@ Point-Free's heavily modularised SPM app (88 local modules):
 | | |
 |---|---|
 | Swift files scanned | 388 |
-| `init --freeze` (full import-graph analysis) | 0.24 s |
-| `lint` (median of 3 runs) | 1.63 s |
-| Machine | Apple M1 |
+| `init --freeze` (full import-graph analysis) | 0.18 s |
+| `lint` (median of 3 runs) | 0.86 s |
+| Machine | Apple M1 — Homebrew binary v0.4.2 |
 
 Reproduce it yourself — one command, pinned to a fixed isowords commit:
 
