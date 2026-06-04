@@ -14,17 +14,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build release
-        run: swift build -c release
+      - name: Build release (universal)
+        run: |
+          swift build -c release --arch arm64
+          swift build -c release --arch x86_64
+          lipo -create \
+            .build/arm64-apple-macosx/release/solid-like-a-rock \
+            .build/x86_64-apple-macosx/release/solid-like-a-rock \
+            -output .build/release/solid-like-a-rock
+          lipo -info .build/release/solid-like-a-rock
 
       - name: Package binary
         run: |
           BIN=.build/release/solid-like-a-rock
           test -x "$BIN" || { echo "binary not found at $BIN"; exit 1; }
-          ARCH=$(uname -m)
-          # Stable asset name (no version), so `releases/latest/download/<name>`
-          # works in CI; the release tag already carries the version.
-          TARBALL="solid-like-a-rock-macos-${ARCH}.tar.gz"
+          # Universal binary — works on both arm64 and x86_64 (Rosetta).
+          TARBALL="solid-like-a-rock-macos-universal.tar.gz"
           tar -czf "$TARBALL" -C .build/release solid-like-a-rock
           shasum -a 256 "$TARBALL" > "$TARBALL.sha256"
           echo "TARBALL=$TARBALL" >> "$GITHUB_ENV"
