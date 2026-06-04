@@ -13,7 +13,12 @@ VERSION="${1:?usage: make-artifactbundle.sh <version> [output-dir]}"
 OUT_DIR="${2:-.}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-swift build -c release --product solid-like-a-rock --package-path "$ROOT"
+swift build -c release --arch arm64  --product solid-like-a-rock --package-path "$ROOT"
+swift build -c release --arch x86_64 --product solid-like-a-rock --package-path "$ROOT"
+lipo -create \
+  "$ROOT/.build/arm64-apple-macosx/release/solid-like-a-rock" \
+  "$ROOT/.build/x86_64-apple-macosx/release/solid-like-a-rock" \
+  -output "$ROOT/.build/release/solid-like-a-rock"
 BIN="$ROOT/.build/release/solid-like-a-rock"
 test -x "$BIN"
 
