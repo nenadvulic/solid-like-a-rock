@@ -27,6 +27,15 @@ Domain  <-  Data  <-  Presentation
 
 ## Install
 
+**Homebrew (recommended):**
+
+```bash
+brew tap nenadvulic/solid-like-a-rock
+brew install solid-like-a-rock
+```
+
+**From source:**
+
 ```bash
 git clone https://github.com/nenadvulic/solid-like-a-rock.git
 cd solid-like-a-rock
