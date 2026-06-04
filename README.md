@@ -336,17 +336,15 @@ fetch a pinned release binary into a gitignored cache. Add a
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION="v0.4.1"
-# `uname -m` reports x86_64 under Rosetta; ask the kernel for the real CPU.
-ARCH="$(uname -m)"
-[[ "$(sysctl -n hw.optional.arm64 2>/dev/null)" == "1" ]] && ARCH="arm64"
+VERSION="v0.4.2"
+# Universal binary (arm64 + x86_64) since v0.4.2 — no arch detection needed.
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BIN="$ROOT/.tools/solid-like-a-rock-$VERSION"
 
 if [[ ! -x "$BIN" ]]; then
   mkdir -p "$ROOT/.tools"; tmp="$(mktemp -d)"
-  url="https://github.com/nenadvulic/solid-like-a-rock/releases/download/$VERSION/solid-like-a-rock-macos-$ARCH.tar.gz"
+  url="https://github.com/nenadvulic/solid-like-a-rock/releases/download/$VERSION/solid-like-a-rock-macos-universal.tar.gz"
   if ! curl -fsSL "$url" -o "$tmp/slr.tar.gz" 2>/dev/null; then
     echo "warning: could not download solid-like-a-rock — skipping architecture lint"; exit 0
   fi
@@ -382,7 +380,7 @@ jobs:
       - name: Install solid-like-a-rock
         run: |
           curl -fsSL -o slr.tar.gz \
-            https://github.com/nenadvulic/solid-like-a-rock/releases/latest/download/solid-like-a-rock-macos-arm64.tar.gz
+            https://github.com/nenadvulic/solid-like-a-rock/releases/latest/download/solid-like-a-rock-macos-universal.tar.gz
           tar -xzf slr.tar.gz && sudo mv solid-like-a-rock /usr/local/bin/
       - name: Lint import boundaries
         run: solid-like-a-rock --reporter github --config .solid.yml Sources
@@ -415,7 +413,7 @@ locally and in CI:
 ```swift
 // your Package.swift
 dependencies: [
-    .package(url: "https://github.com/nenadvulic/solid-like-a-rock", from: "0.4.1"),
+    .package(url: "https://github.com/nenadvulic/solid-like-a-rock", from: "0.4.2"),
 ],
 ```
 
@@ -438,7 +436,7 @@ so no compile-from-source cost:
 ```swift
 // your Package.swift
 dependencies: [
-    .package(url: "https://github.com/nenadvulic/solid-like-a-rock", from: "0.4.1"),
+    .package(url: "https://github.com/nenadvulic/solid-like-a-rock", from: "0.4.2"),
 ],
 targets: [
     .target(
