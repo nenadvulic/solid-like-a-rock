@@ -29,7 +29,7 @@ Domain  <-  Data  <-  Presentation
 
 ```bash
 git clone https://github.com/nenadvulic/solid-like-a-rock.git
-cd SolidLikeARock
+cd solid-like-a-rock
 swift build -c release
 cp .build/release/solid-like-a-rock /usr/local/bin/
 ```
@@ -67,6 +67,51 @@ solid-like-a-rock init --packages-dir Modules .
 It auto-detects the layout (`Packages/<M>/Sources` or `Sources/<M>`), scans only
 sources (never `Tests/`), ignores system/third-party imports, and writes a sorted,
 deterministic, commented file. It won't overwrite an existing file without `--force`.
+
+> **Xcode / CocoaPods projects (no SwiftPM modules):** `init` requires a SwiftPM
+> module structure to build the import graph. Plain Xcode targets are not
+> discoverable, so the command will report *no local modules found*. Write
+> `.solid.yml` by hand instead — map your source folders as layers and use
+> `deny` lists to enforce the boundaries you care about:
+>
+> ```yaml
+> exclude:
+>   - /Pods/
+>   - /.build/
+>
+> alwaysAllow:
+>   - Foundation
+>   - UIKit
+>   - SwiftUI
+>   - Combine
+>
+> layers:
+>   - name: Domain
+>     paths: [MyApp/Domain/**]
+>     allow: [Foundation]
+>
+>   - name: Data
+>     paths: [MyApp/Data/**]
+>     deny: [UIKit, SwiftUI]   # Data must never reach into the UI
+>
+>   - name: Presentation
+>     paths: [MyApp/Presentation/**]
+>     deny: [NetworkProvider, DataStore]   # UI goes through the Domain, not Data
+> ```
+>
+> Run it against your source tree:
+>
+> ```bash
+> solid-like-a-rock --config .solid.yml MyApp
+> ```
+>
+> If the project already has violations, capture a baseline first so CI only
+> fails on *new* ones:
+>
+> ```bash
+> solid-like-a-rock --write-baseline .solid-baseline.json --config .solid.yml MyApp
+> solid-like-a-rock --baseline .solid-baseline.json --config .solid.yml MyApp
+> ```
 
 ## Configure
 
