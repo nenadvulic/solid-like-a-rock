@@ -61,6 +61,35 @@ public struct LayerRule: Decodable, Equatable {
     }
 }
 
+/// Opt-in visibility rule: flag top-level `public`/`open` declarations in
+/// leaf modules (modules no other local module imports). Module-level only —
+/// symbol-level unused-public detection is Periphery's job.
+public struct VisibilityRules: Decodable, Equatable {
+    public let warnPublicInLeafModules: Bool
+    /// Modules vended to external consumers; skipped entirely.
+    public let excludeModules: [String]
+    /// Defaults to `.warning` — advice, not a boundary violation.
+    public let severity: Severity
+
+    public init(warnPublicInLeafModules: Bool, excludeModules: [String] = [],
+                severity: Severity = .warning) {
+        self.warnPublicInLeafModules = warnPublicInLeafModules
+        self.excludeModules = excludeModules
+        self.severity = severity
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case warnPublicInLeafModules, excludeModules, severity
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.warnPublicInLeafModules = (try? c.decode(Bool.self, forKey: .warnPublicInLeafModules)) ?? false
+        self.excludeModules = (try? c.decode([String].self, forKey: .excludeModules)) ?? []
+        self.severity = (try? c.decode(Severity.self, forKey: .severity)) ?? .warning
+    }
+}
+
 /// Top-level configuration, loaded from a YAML file (default `.solid.yml`).
 public struct Configuration: Decodable, Equatable {
     /// Modules every layer is always permitted to import (system frameworks, etc.).
@@ -78,13 +107,17 @@ public struct Configuration: Decodable, Equatable {
     /// use it to keep dependencies and build artefacts (`.build`, `Pods`,
     /// `checkouts`, …) out of the analysis.
     public let exclude: [String]
+    /// Opt-in visibility rule. `nil` when the `visibility:` section is absent,
+    /// so existing configs are unaffected.
+    public let visibility: VisibilityRules?
 
     public init(alwaysAllow: [String] = [], layers: [LayerRule], exclude: [String] = [],
-                dependencyOrder: [String] = []) {
+                dependencyOrder: [String] = [], visibility: VisibilityRules? = nil) {
         self.alwaysAllow = alwaysAllow
         self.layers = layers
         self.exclude = exclude
         self.dependencyOrder = dependencyOrder
+        self.visibility = visibility
     }
 
     enum CodingKeys: String, CodingKey {
@@ -92,6 +125,7 @@ public struct Configuration: Decodable, Equatable {
         case layers
         case exclude
         case dependencyOrder
+        case visibility
     }
 
     public init(from decoder: Decoder) throws {
@@ -100,6 +134,7 @@ public struct Configuration: Decodable, Equatable {
         self.layers = try c.decode([LayerRule].self, forKey: .layers)
         self.exclude = (try? c.decode([String].self, forKey: .exclude)) ?? []
         self.dependencyOrder = (try? c.decode([String].self, forKey: .dependencyOrder)) ?? []
+        self.visibility = try? c.decode(VisibilityRules.self, forKey: .visibility)
     }
 
     /// Load and decode a configuration from a YAML file on disk.
