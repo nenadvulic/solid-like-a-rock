@@ -62,6 +62,17 @@ public struct VisibilityChecker {
         var result: [PublicDecl] = []
         for item in tree.statements {
             guard let decl = item.item.as(DeclSyntax.self) else { continue }
+            // A variable decl can declare several names at once (`let a = 1, b = 2`);
+            // flag each binding so none is silently missed.
+            if let d = decl.as(VariableDeclSyntax.self) {
+                guard d.modifiers.contains(where: { ["public", "open"].contains($0.name.text) })
+                else { continue }
+                for binding in d.bindings {
+                    result.append(PublicDecl(name: binding.pattern.trimmedDescription,
+                                             node: Syntax(binding)))
+                }
+                continue
+            }
             guard let info = declInfo(decl), info.isPublic else { continue }
             result.append(PublicDecl(name: info.name, node: Syntax(decl)))
         }

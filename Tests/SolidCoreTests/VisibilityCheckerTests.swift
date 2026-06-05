@@ -124,6 +124,13 @@ final class VisibilityCheckerTests: XCTestCase {
         XCTAssertEqual(violations.map(\.importedModule), ["Box"])  // the type, not its members
     }
 
+    func testEveryBindingOfAMultiBindingVarIsFlagged() throws {
+        let root = try makeProject([
+            "Utils": ["Pair": "public let a = 1, b = 2\n"],
+        ])
+        XCTAssertEqual(check(root).map(\.importedModule).sorted(), ["a", "b"])
+    }
+
     func testSeverityComesFromRules() throws {
         let root = try makeProject([
             "Utils": ["Helper": "open class Helper {}\n"],
