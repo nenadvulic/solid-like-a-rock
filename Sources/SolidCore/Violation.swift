@@ -10,6 +10,10 @@ public struct Violation: Equatable {
         /// `dependencyOrder` is set and the layer imports a more-outer layer
         /// (a dependency that points outward instead of inward).
         case outwardDependency
+        /// The file's module is a leaf (no other local module imports it) yet
+        /// declares a public symbol. `importedModule` carries the SYMBOL name,
+        /// `layer` carries the MODULE name.
+        case publicInLeafModule
     }
 
     public let file: String
@@ -43,6 +47,8 @@ public struct Violation: Equatable {
         case .outwardDependency:
             let target = targetLayer.map { " (outer layer '\($0)')" } ?? ""
             return "layer '\(layer)' must not depend outward on '\(importedModule)'\(target)"
+        case .publicInLeafModule:
+            return "module '\(layer)' is not imported by any other module, but declares public symbol '\(importedModule)' — make it internal, or exclude the module"
         }
     }
 
