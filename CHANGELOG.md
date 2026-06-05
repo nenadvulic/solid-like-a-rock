@@ -3,6 +3,28 @@
 All notable changes to SolidLikeARock. Versions follow the `swift-syntax`-friendly
 `0.x` scheme; the project targets a Swift 6.0+ toolchain (macOS).
 
+## [0.5.0]
+- **Visibility rule** (opt-in `visibility:` config section): flag top-level
+  `public`/`open` declarations in **leaf modules** (modules no other local
+  module imports) — `warnPublicInLeafModules`, `excludeModules`, `severity`
+  (default `warning`). Executable modules (`main.swift` / `@main`) are skipped
+  automatically; violations are baselineable like any other. Module-level only
+  by design — symbol-level unused-public detection is Periphery's job.
+- `ModuleGraph`: shared module-discovery + import-graph component (extracted
+  from `init`), also used to resolve package roots from scan paths so
+  `lint Sources` fires the rule.
+- Reproducible benchmark (`scripts/benchmark.sh`, pinned isowords checkout) and
+  a README **Performance** section with measured numbers.
+- Problem-oriented README rewrite; battle-tested Danger example
+  (Homebrew paths, `lint` subcommand, baseline support).
+
+## [0.4.2]
+- **Universal macOS binary** (arm64 + x86_64 via `lipo`) — release asset renamed
+  to `solid-like-a-rock-macos-universal.tar.gz`; runs under Rosetta without
+  `arch -arm64`.
+- **Homebrew tap**: `brew tap nenadvulic/solid-like-a-rock && brew install solid-like-a-rock`.
+- Docs: Xcode/CocoaPods manual-config guide, "Generate a config with AI" prompt.
+
 ## [0.4.1]
 - **SwiftPM build-tool plugin** (`SolidLintBuildTool`): lints automatically as a
   prebuild step on every `swift build` / Xcode build — violations inline, no
