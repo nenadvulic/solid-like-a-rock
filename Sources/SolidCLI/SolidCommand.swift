@@ -82,8 +82,12 @@ struct Lint: ParsableCommand {
             }
         }
 
-        let allViolations = try linter.lint(files: files)
-            .sorted(by: { ($0.file, $0.line) < ($1.file, $1.line) })
+        var allViolations = try linter.lint(files: files)
+        if let vis = configuration.visibility, vis.warnPublicInLeafModules {
+            allViolations += VisibilityChecker(rules: vis)
+                .check(roots: paths, excluding: excludes)
+        }
+        allViolations.sort(by: { ($0.file, $0.line) < ($1.file, $1.line) })
 
         // --write-baseline: snapshot the current violations and exit successfully.
         if let path = writeBaseline {

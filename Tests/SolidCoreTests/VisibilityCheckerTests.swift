@@ -138,4 +138,14 @@ final class VisibilityCheckerTests: XCTestCase {
         let rules = VisibilityRules(warnPublicInLeafModules: true, severity: .error)
         XCTAssertEqual(check(root, rules: rules).first?.severity, .error)
     }
+
+    func testBaselinedVisibilityViolationIsNotReportedAgain() throws {
+        let root = try makeProject([
+            "Utils": ["Helper": "public struct Helper {}\n"],
+        ])
+        let all = check(root)
+        XCTAssertEqual(all.count, 1)
+        let baseline = Baseline(violations: all)
+        XCTAssertEqual(baseline.newViolations(in: check(root)), [])
+    }
 }
