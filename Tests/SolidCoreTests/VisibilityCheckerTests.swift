@@ -64,11 +64,14 @@ final class VisibilityCheckerTests: XCTestCase {
     }
 
     func testPublicInLeafModuleMessage() {
-        let v = Violation(file: "Sources/Utils/Helper.swift", line: 3,
-                          importedModule: "Helper", layer: "Utils",
-                          reason: .publicInLeafModule, severity: .warning)
+        let v = Violation.publicInLeafModule(module: "Utils", symbol: "Helper",
+                                             file: "Sources/Utils/Helper.swift", line: 3,
+                                             severity: .warning)
         XCTAssertEqual(v.message,
             "module 'Utils' is not imported by any other module, but declares public symbol 'Helper' — make it internal, or exclude the module")
         XCTAssertTrue(v.diagnostic.contains("warning:"))
+        // The factory maps symbol→importedModule and module→layer (reporter compat).
+        XCTAssertEqual(v.importedModule, "Helper")
+        XCTAssertEqual(v.layer, "Utils")
     }
 }

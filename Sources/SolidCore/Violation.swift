@@ -37,6 +37,17 @@ public struct Violation: Equatable {
         self.severity = severity
     }
 
+    /// Build a `.publicInLeafModule` violation. The existing fields are reused
+    /// for reporter/baseline compatibility — `importedModule` carries the
+    /// SYMBOL name and `layer` the MODULE name — so construction goes through
+    /// this factory to keep that mapping in one place.
+    public static func publicInLeafModule(module: String, symbol: String,
+                                          file: String, line: Int,
+                                          severity: Severity) -> Violation {
+        Violation(file: file, line: line, importedModule: symbol,
+                  layer: module, reason: .publicInLeafModule, severity: severity)
+    }
+
     /// A human-readable explanation of the violation.
     public var message: String {
         switch reason {
