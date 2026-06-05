@@ -24,8 +24,6 @@ public enum ConfigGeneratorError: Error, CustomStringConvertible {
 /// import graph — deterministic, no LLM. Emits one layer per local module; the
 /// user regroups/renames into real layers afterwards.
 public struct ConfigGenerator {
-    private struct Module { let name: String; let pathPrefix: String }
-
     private let root: String
     private let packagesDir: String?
 
@@ -35,19 +33,18 @@ public struct ConfigGenerator {
     }
 
     public func generate(mode: InitMode) throws -> String {
-        let modules = discoverModules()
+        let graph = ModuleGraph.build(root: root, packagesDir: packagesDir)
+        let modules = graph.modules
         guard !modules.isEmpty else { throw ConfigGeneratorError.noModules(root) }
-
         let names = Set(modules.map(\.name))
-        let graph = buildGraph(modules: modules, localModules: names)
 
         let denies: [String: [String]]
         var rankComment = ""
         switch mode {
         case .freeze:
-            denies = freezeDenies(modules: modules, localModules: names, graph: graph)
+            denies = freezeDenies(modules: modules, localModules: names, graph: graph.imports)
         case .layered:
-            let (d, comment) = layeredDenies(modules: modules, localModules: names, graph: graph)
+            let (d, comment) = layeredDenies(modules: modules, localModules: names, graph: graph.imports)
             denies = d
             rankComment = comment
         }
@@ -57,67 +54,9 @@ public struct ConfigGenerator {
         return yaml
     }
 
-    // MARK: - §5.1 Module discovery
-
-    private func discoverModules() -> [Module] {
-        let fm = FileManager.default
-        func hasSwift(_ dir: String) -> Bool {
-            !swiftFiles(under: dir, excluding: ["/Tests/"]).isEmpty
-        }
-        func modulesIn(container: String, relativePrefix: (String) -> String) -> [Module] {
-            guard let entries = try? fm.contentsOfDirectory(atPath: container) else { return [] }
-            return entries.sorted().compactMap { name in
-                let dir = (container as NSString).appendingPathComponent(name)
-                var isDir: ObjCBool = false
-                guard fm.fileExists(atPath: dir, isDirectory: &isDir), isDir.boolValue else { return nil }
-                guard hasSwift(dir) else { return nil }
-                return Module(name: name, pathPrefix: relativePrefix(name))
-            }
-        }
-
-        // Explicit --packages-dir, or auto-detect Packages/<M>/Sources, else Sources/<M>.
-        if let pkgDir = packagesDir {
-            let container = (root as NSString).appendingPathComponent(pkgDir)
-            return modulesIn(container: container) { "\(pkgDir)/\($0)/" }
-        }
-        let packages = (root as NSString).appendingPathComponent("Packages")
-        if fm.fileExists(atPath: packages) {
-            // multi-package: Packages/<M>/Sources
-            let multi = (try? fm.contentsOfDirectory(atPath: packages))?.sorted().compactMap { name -> Module? in
-                let srcDir = packages + "/" + name + "/Sources"
-                guard fm.fileExists(atPath: srcDir), hasSwift(srcDir) else { return nil }
-                return Module(name: name, pathPrefix: "Packages/\(name)/Sources/")
-            } ?? []
-            if !multi.isEmpty { return multi }
-        }
-        let sources = (root as NSString).appendingPathComponent("Sources")
-        if fm.fileExists(atPath: sources) {
-            return modulesIn(container: sources) { "Sources/\($0)/" }
-        }
-        return []
-    }
-
-    // MARK: - §5.2 Import graph
-
-    private func buildGraph(modules: [Module], localModules: Set<String>) -> [String: Set<String>] {
-        var graph: [String: Set<String>] = [:]
-        for module in modules {
-            let dir = (root as NSString).appendingPathComponent(module.pathPrefix)
-            var imported: Set<String> = []
-            for file in swiftFiles(under: dir, excluding: ["/Tests/"]) {
-                guard let source = try? String(contentsOfFile: file, encoding: .utf8) else { continue }
-                for imp in ImportCollector.imports(in: source) where localModules.contains(imp.module) && imp.module != module.name {
-                    imported.insert(imp.module)
-                }
-            }
-            graph[module.name] = imported
-        }
-        return graph
-    }
-
     // MARK: - §5.3 Freeze
 
-    private func freezeDenies(modules: [Module], localModules: Set<String>,
+    private func freezeDenies(modules: [ModuleGraph.Module], localModules: Set<String>,
                               graph: [String: Set<String>]) -> [String: [String]] {
         var denies: [String: [String]] = [:]
         for module in modules {
@@ -129,7 +68,7 @@ public struct ConfigGenerator {
 
     // MARK: - §5.4 Layered (rank by longest path on the condensed DAG)
 
-    private func layeredDenies(modules: [Module], localModules: Set<String>,
+    private func layeredDenies(modules: [ModuleGraph.Module], localModules: Set<String>,
                                graph: [String: Set<String>]) -> ([String: [String]], String) {
         let sccs = stronglyConnectedComponents(nodes: localModules, edges: graph)
         // Map each module to its component id.
@@ -226,7 +165,7 @@ public struct ConfigGenerator {
 
     // MARK: - §6 YAML rendering + validation
 
-    private func renderYAML(modules: [Module], denies: [String: [String]],
+    private func renderYAML(modules: [ModuleGraph.Module], denies: [String: [String]],
                             mode: InitMode, rankComment: String) -> String {
         let modeName = mode == .freeze ? "freeze" : "layered"
         var out = """
