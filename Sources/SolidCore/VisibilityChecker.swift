@@ -13,13 +13,14 @@ public struct VisibilityChecker {
         self.rules = rules
     }
 
-    /// `roots` are the paths passed to `lint`; each is tried with the same
-    /// layout detection as `init`. Roots with no discoverable modules are
-    /// skipped silently (the rule simply doesn't apply there).
+    /// `roots` are the paths passed to `lint` (e.g. `Sources`); each is mapped
+    /// to the package root that actually owns the module layout. Scan paths with
+    /// no discoverable modules nearby are skipped silently (the rule simply
+    /// doesn't apply there).
     public func check(roots: [String], excluding: [String] = []) -> [Violation] {
         guard rules.warnPublicInLeafModules else { return [] }
         var violations: [Violation] = []
-        for root in roots {
+        for root in Self.resolvePackageRoots(from: roots) {
             let graph = ModuleGraph.build(root: root)
             for module in graph.leafModules where !rules.excludeModules.contains(module.name) {
                 let dir = (root as NSString).appendingPathComponent(module.pathPrefix)
@@ -48,6 +49,40 @@ public struct VisibilityChecker {
             }
         }
         return violations
+    }
+
+    /// Map scan paths (what `lint` receives, e.g. `Sources`) to the package
+    /// roots that actually contain the module layout, walking up a few levels
+    /// when needed (`Sources` → its parent). Deduplicates so overlapping scan
+    /// paths don't lint the same package twice; order is deterministic.
+    static func resolvePackageRoots(from paths: [String]) -> [String] {
+        var seen = Set<String>()
+        var roots: [String] = []
+        for path in paths {
+            guard let root = resolvePackageRoot(from: path) else { continue }
+            let canonical = URL(fileURLWithPath: root).standardizedFileURL.resolvingSymlinksInPath().path
+            if seen.insert(canonical).inserted { roots.append(canonical) }
+        }
+        return roots
+    }
+
+    /// Walk up from `path` (at most a handful of levels) until a directory
+    /// whose layout yields local modules is found. Returns nil when none does —
+    /// the rule simply doesn't apply to that path.
+    private static func resolvePackageRoot(from path: String) -> String? {
+        var dir = URL(fileURLWithPath: path).standardizedFileURL
+        // A file path (e.g. a single .swift argument) starts from its directory.
+        var isDirectory: ObjCBool = false
+        if FileManager.default.fileExists(atPath: dir.path, isDirectory: &isDirectory), !isDirectory.boolValue {
+            dir.deleteLastPathComponent()
+        }
+        for _ in 0..<4 {
+            if !ModuleGraph.build(root: dir.path).modules.isEmpty { return dir.path }
+            let parent = dir.deletingLastPathComponent()
+            if parent.path == dir.path { break }   // filesystem root
+            dir = parent
+        }
+        return nil
     }
 
     // MARK: - Top-level declaration scan
@@ -119,9 +154,10 @@ public struct VisibilityChecker {
             let f = flags(d.modifiers, d.attributes); return (d.name.text, f.isPublic, f.hasMain)
         }
         if let d = decl.as(VariableDeclSyntax.self) {
+            // Per-binding publics are handled in `topLevelPublicDecls`; here this
+            // branch is only reached via `hasTopLevelMain`, which needs `hasMain`.
             let f = flags(d.modifiers, d.attributes)
-            let name = d.bindings.first?.pattern.trimmedDescription ?? "_"
-            return (name, f.isPublic, f.hasMain)
+            return ("_", false, f.hasMain)
         }
         if let d = decl.as(ExtensionDeclSyntax.self) {
             let f = flags(d.modifiers, d.attributes)

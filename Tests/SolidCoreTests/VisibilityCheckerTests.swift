@@ -148,4 +148,26 @@ final class VisibilityCheckerTests: XCTestCase {
         let baseline = Baseline(violations: all)
         XCTAssertEqual(baseline.newViolations(in: check(root)), [])
     }
+
+    func testScanPathInsideThePackageResolvesToThePackageRoot() throws {
+        // The universal CLI usage is `lint Sources` — the checker must walk up
+        // from the scan path to the directory that actually contains Sources/<M>.
+        let root = try makeProject([
+            "Utils": ["Helper": "public struct Helper {}\n"],
+        ])
+        let viaSources = VisibilityChecker(rules: .init(warnPublicInLeafModules: true))
+            .check(roots: [root + "/Sources"], excluding: [])
+        XCTAssertEqual(viaSources.map(\.importedModule), ["Helper"])
+    }
+
+    func testOverlappingRootsDoNotDuplicateViolations() throws {
+        let root = try makeProject([
+            "Utils": ["Helper": "public struct Helper {}\n"],
+        ])
+        // `lint Sources Sources/Utils` (or Sources + a sibling dir) must not
+        // run the same package root twice.
+        let violations = VisibilityChecker(rules: .init(warnPublicInLeafModules: true))
+            .check(roots: [root + "/Sources", root], excluding: [])
+        XCTAssertEqual(violations.count, 1)
+    }
 }
