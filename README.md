@@ -28,6 +28,10 @@ AI agent:
 Sources/Presentation/HomeView.swift:5: error: SolidLikeARock: layer 'Presentation' must not import 'Data'
 ```
 
+<p align="center">
+  <img src="demo/demo.gif" alt="Demo: a forbidden import is caught by solid-like-a-rock, fixed, and the lint goes green" width="720">
+</p>
+
 Under the hood it is a tiny, dependency-light Swift CLI that parses each
 `.swift` file with [SwiftSyntax](https://github.com/swiftlang/swift-syntax)
 (a real syntax tree — no fragile regex / `grep`), finds every `import`
@@ -95,6 +99,11 @@ solid-like-a-rock init --packages-dir Modules .
 - **`--freeze`** — for each module, deny every *other* local module it doesn't
   import today. Result: **zero violations now**, and the linter bites the moment
   a **new** cross-module dependency appears. The fastest way onto a living codebase.
+
+<p align="center">
+  <img src="demo/init-freeze.gif" alt="Demo: init --freeze generates a config with zero violations, then catches a new cross-module dependency" width="720">
+</p>
+
 - **default (heuristic)** — ranks modules by depth in the import graph and denies
   only *outward* dependencies (toward more-outer layers). More permissive; review it.
 
@@ -315,6 +324,10 @@ solid-like-a-rock --baseline .solid-baseline.json Sources
 A violation's identity is `file + module + reason` — the line number is
 excluded, so editing code above an import doesn't resurface a baselined entry as
 "new". The baseline file is plain, sorted JSON: diff-friendly and safe to commit.
+
+<p align="center">
+  <img src="demo/baseline.gif" alt="Demo: existing violations are recorded in a baseline, then lint passes — only new violations fail" width="720">
+</p>
 
 ### Inline suppressions — `// solid:ignore <reason>`
 
