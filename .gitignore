@@ -14,3 +14,6 @@ DerivedData/
 
 # Locally-built artifactbundle (test/dev; distribution uses a release URL)
 artifacts/
+
+# Rendered social-media videos (re-render from the .tape scripts in demo/)
+demo/*.mp4

@@ -9,6 +9,7 @@ any release so they never go stale.
 | `demo.tape` | `demo.gif` | The pitch: a forbidden import → ❌ → fix → ✅ |
 | `init-freeze.tape` | `init-freeze.gif` | `init --freeze`: adopt on an existing codebase with zero violations, bites on new cross-module deps |
 | `baseline.tape` | `baseline.gif` | `--write-baseline` / `--baseline`: only new violations fail |
+| `linkedin.tape` | `linkedin.mp4` (not committed) | Social cut of the pitch: square 1080×1080 native video, large font, ~35s |
 
 ## Re-render
 
