@@ -74,4 +74,61 @@ final class VisibilityCheckerTests: XCTestCase {
         XCTAssertEqual(v.importedModule, "Helper")
         XCTAssertEqual(v.layer, "Utils")
     }
+
+    private func check(_ root: String, rules: VisibilityRules = .init(warnPublicInLeafModules: true)) -> [Violation] {
+        VisibilityChecker(rules: rules).check(roots: [root], excluding: ["/.build/"])
+    }
+
+    func testPublicSymbolInLeafModuleIsFlagged() throws {
+        let root = try makeProject([
+            "Utils": ["Helper": "public struct Helper {}\npublic func freebie() {}\n"],
+        ])
+        let violations = check(root)
+        XCTAssertEqual(violations.count, 2)
+        XCTAssertEqual(violations.map(\.importedModule).sorted(), ["Helper", "freebie"])
+        XCTAssertEqual(violations.first?.layer, "Utils")
+        XCTAssertEqual(violations.first?.reason, .publicInLeafModule)
+        XCTAssertEqual(violations.first?.severity, .warning)
+    }
+
+    func testConsumedModuleIsNotFlagged() throws {
+        let root = try makeProject([
+            "Utils": ["Helper": "public struct Helper {}\n"],
+            "App":   ["Main": "import Utils\nlet h = Helper()\n"],
+        ])
+        // Utils is imported by App → not a leaf. App is a leaf but has no publics.
+        XCTAssertEqual(check(root), [])
+    }
+
+    func testExcludedModuleIsNotFlagged() throws {
+        let root = try makeProject([
+            "PublicSDK": ["API": "public struct API {}\n"],
+        ])
+        let rules = VisibilityRules(warnPublicInLeafModules: true, excludeModules: ["PublicSDK"])
+        XCTAssertEqual(check(root, rules: rules), [])
+    }
+
+    func testExecutableModuleIsNotFlagged() throws {
+        let root = try makeProject([
+            "ToolMain": ["main": "public let entry = 1\n"],                       // main.swift
+            "ToolApp":  ["App": "@main\npublic struct App { public static func main() {} }\n"],
+        ])
+        XCTAssertEqual(check(root), [])
+    }
+
+    func testMembersOfPublicTypeAreNotIndividuallyFlagged() throws {
+        let root = try makeProject([
+            "Utils": ["Box": "public struct Box {\n  public var value = 0\n  public func touch() {}\n}\n"],
+        ])
+        let violations = check(root)
+        XCTAssertEqual(violations.map(\.importedModule), ["Box"])  // the type, not its members
+    }
+
+    func testSeverityComesFromRules() throws {
+        let root = try makeProject([
+            "Utils": ["Helper": "open class Helper {}\n"],
+        ])
+        let rules = VisibilityRules(warnPublicInLeafModules: true, severity: .error)
+        XCTAssertEqual(check(root, rules: rules).first?.severity, .error)
+    }
 }
