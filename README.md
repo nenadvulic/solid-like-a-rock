@@ -254,6 +254,28 @@ v0.1.0 behaviour), so existing configs are unchanged. A module may belong to at
 most one layer, and every `dependencyOrder` name must match a declared layer —
 both are checked before linting.
 
+### Visibility rule (`visibility`)
+
+Opt-in: flag top-level `public`/`open` declarations living in **leaf modules**
+— local modules that no other module imports. Either the module is a product
+for external consumers (exclude it) or those symbols should be `internal`:
+
+```yaml
+visibility:
+  warnPublicInLeafModules: true
+  excludeModules: [MyPublicSDK]   # vended to external consumers — skipped
+  severity: warning               # default; set `error` to fail the build
+```
+
+```
+Sources/Utils/Helper.swift:1: warning: SolidLikeARock: module 'Utils' is not imported by any other module, but declares public symbol 'Helper' — make it internal, or exclude the module
+```
+
+Module-level only, by design: deciding whether a *specific* public symbol is
+unused requires type information — that's [Periphery](https://github.com/peripheryapp/periphery)'s
+job. Executable modules (`main.swift` / `@main`) are skipped automatically,
+and violations are baselineable like any other.
+
 ## Run
 
 ```bash
