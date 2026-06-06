@@ -71,8 +71,8 @@ let package = Package(
         ),
         .binaryTarget(
             name: "SolidLikeARockBinary",
-            url: "https://github.com/nenadvulic/solid-like-a-rock/releases/download/v0.4.0/solid-like-a-rock.artifactbundle.zip",
-            checksum: "aafcdb893742fe1a7e2c25db982e581251ee631a1ca6bbad35c5193989e57837"
+            url: "https://github.com/nenadvulic/solid-like-a-rock/releases/download/v0.5.0/solid-like-a-rock.artifactbundle.zip",
+            checksum: "ab130dd2451afc7594114d960acad2cc9e3b209dac40759c3186741147e28542"
         ),
     ],
     // tools-version 6.0 is required so the command plugin can invoke the
