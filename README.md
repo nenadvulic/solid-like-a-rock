@@ -423,7 +423,17 @@ Then point the Run Script phase at it — `"${SRCROOT}/../scripts/lint-architect
 > run the script once from a terminal to seed the cache, or set it to `NO` for
 > the target.
 
-### CI — download the released binary (recommended)
+### CI — GitHub Action (easiest)
+
+```yaml
+- uses: nenadvulic/solid-like-a-rock-action@v1
+  with:
+    paths: Sources
+```
+
+See [solid-like-a-rock-action](https://github.com/nenadvulic/solid-like-a-rock-action) for all inputs (`version`, `config`, `baseline`).
+
+### CI — download the released binary
 
 Each tagged release publishes a prebuilt macOS binary, so CI doesn't pay the
 SwiftSyntax build cost:
