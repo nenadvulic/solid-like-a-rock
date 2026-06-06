@@ -8,8 +8,8 @@ permissions:
   contents: write   # needed to create the GitHub Release and upload assets
 
 jobs:
-  release:
-    name: Build release binary & publish
+  build-macos:
+    name: Build macOS binaries
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
@@ -32,7 +32,6 @@ jobs:
           TARBALL="solid-like-a-rock-macos-universal.tar.gz"
           tar -czf "$TARBALL" -C .build/release solid-like-a-rock
           shasum -a 256 "$TARBALL" > "$TARBALL.sha256"
-          echo "TARBALL=$TARBALL" >> "$GITHUB_ENV"
 
       - name: Package artifactbundle (for the SwiftPM build-tool plugin)
         run: |
@@ -42,14 +41,69 @@ jobs:
           ditto -c -k --keepParent solid-like-a-rock.artifactbundle "$BUNDLE_ZIP"
           # SwiftPM's own checksum, used by binaryTarget(url:checksum:).
           swift package compute-checksum "$BUNDLE_ZIP" > "$BUNDLE_ZIP.checksum"
-          echo "BUNDLE_ZIP=$BUNDLE_ZIP" >> "$GITHUB_ENV"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-assets
+          path: |
+            solid-like-a-rock-macos-universal.tar.gz
+            solid-like-a-rock-macos-universal.tar.gz.sha256
+            solid-like-a-rock.artifactbundle.zip
+            solid-like-a-rock.artifactbundle.zip.checksum
+          if-no-files-found: error
+
+  build-linux:
+    name: Build Linux binary (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - { arch: x86_64,  runner: ubuntu-latest }
+          - { arch: aarch64, runner: ubuntu-24.04-arm }
+    container: swift:6.0-noble
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build release (static stdlib)
+        run: swift build -c release --static-swift-stdlib --product solid-like-a-rock
+
+      - name: Package binary
+        run: |
+          BIN=".build/${{ matrix.arch }}-unknown-linux-gnu/release/solid-like-a-rock"
+          test -x "$BIN" || { echo "binary not found at $BIN"; exit 1; }
+          # Strip debug info — local validation measured 119 MB unstripped.
+          strip "$BIN"
+          TARBALL="solid-like-a-rock-linux-${{ matrix.arch }}.tar.gz"
+          tar -czf "$TARBALL" -C "$(dirname "$BIN")" solid-like-a-rock
+          sha256sum "$TARBALL" > "$TARBALL.sha256"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-${{ matrix.arch }}-assets
+          path: |
+            solid-like-a-rock-linux-${{ matrix.arch }}.tar.gz
+            solid-like-a-rock-linux-${{ matrix.arch }}.tar.gz.sha256
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub Release
+    needs: [build-macos, build-linux]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            ${{ env.TARBALL }}
-            ${{ env.TARBALL }}.sha256
-            ${{ env.BUNDLE_ZIP }}
-            ${{ env.BUNDLE_ZIP }}.checksum
+            solid-like-a-rock-macos-universal.tar.gz
+            solid-like-a-rock-macos-universal.tar.gz.sha256
+            solid-like-a-rock.artifactbundle.zip
+            solid-like-a-rock.artifactbundle.zip.checksum
+            solid-like-a-rock-linux-x86_64.tar.gz
+            solid-like-a-rock-linux-x86_64.tar.gz.sha256
+            solid-like-a-rock-linux-aarch64.tar.gz
+            solid-like-a-rock-linux-aarch64.tar.gz.sha256
           generate_release_notes: true
