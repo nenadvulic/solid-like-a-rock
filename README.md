@@ -5,7 +5,8 @@
 <p align="center">
   <a href="https://github.com/nenadvulic/solid-like-a-rock/actions/workflows/ci.yml"><img src="https://github.com/nenadvulic/solid-like-a-rock/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://github.com/nenadvulic/solid-like-a-rock/releases/latest"><img src="https://img.shields.io/github/v/release/nenadvulic/solid-like-a-rock?sort=semver" alt="Latest release"></a>
-  <img src="https://img.shields.io/badge/Swift-6.0-orange.svg" alt="Swift 6.0">
+  <a href="https://swiftpackageindex.com/nenadvulic/solid-like-a-rock"><img src="https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2Fnenadvulic%2Fsolid-like-a-rock%2Fbadge%3Ftype%3Dswift-versions" alt="Swift versions"></a>
+  <a href="https://swiftpackageindex.com/nenadvulic/solid-like-a-rock"><img src="https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2Fnenadvulic%2Fsolid-like-a-rock%2Fbadge%3Ftype%3Dplatforms" alt="Platforms"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/nenadvulic/solid-like-a-rock" alt="License: MIT"></a>
 </p>
 
