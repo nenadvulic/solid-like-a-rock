@@ -7,6 +7,8 @@ All notable changes to SolidLikeARock. Versions follow the `swift-syntax`-friend
 - Build-tool plugin: `SolidLikeARockBinary` binary target now resolves the
   **v0.5.0** artifactbundle (was pinned to v0.4.0 by the two-step release
   chicken-and-egg), so prebuild linting runs the current binary.
+- **Linux release binaries** (`linux-x86_64`, `linux-aarch64`), statically
+  linked (`--static-swift-stdlib`) — no Swift runtime needed on the host.
 
 ## [0.5.0]
 - **Visibility rule** (opt-in `visibility:` config section): flag top-level
