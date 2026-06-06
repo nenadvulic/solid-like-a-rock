@@ -9,7 +9,6 @@ All notable changes to SolidLikeARock. Versions follow the `swift-syntax`-friend
   chicken-and-egg), so prebuild linting runs the current binary.
 - **Linux release binaries** (`linux-x86_64`, `linux-aarch64`), statically
   linked (`--static-swift-stdlib`) — no Swift runtime needed on the host.
-  Groundwork for the GitHub Action.
 
 ## [0.5.0]
 - **Visibility rule** (opt-in `visibility:` config section): flag top-level
