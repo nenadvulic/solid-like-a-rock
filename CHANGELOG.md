@@ -3,6 +3,11 @@
 All notable changes to SolidLikeARock. Versions follow the `swift-syntax`-friendly
 `0.x` scheme; the project targets a Swift 6.0+ toolchain (macOS).
 
+## [Unreleased]
+- Build-tool plugin: `SolidLikeARockBinary` binary target now resolves the
+  **v0.5.0** artifactbundle (was pinned to v0.4.0 by the two-step release
+  chicken-and-egg), so prebuild linting runs the current binary.
+
 ## [0.5.0]
 - **Visibility rule** (opt-in `visibility:` config section): flag top-level
   `public`/`open` declarations in **leaf modules** (modules no other local
