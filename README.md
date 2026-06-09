@@ -54,6 +54,16 @@ It completes the tools you already run, rather than replacing them:
 | [Periphery](https://github.com/peripheryapp/periphery) | Dead code |
 | **SolidLikeARock** | Architecture rules |
 
+## Why now?
+
+AI coding assistants can generate code faster than humans can review it.
+
+The challenge is no longer writing code.
+
+The challenge is ensuring that generated code conforms to your architecture.
+
+SolidLikeARock acts as an architectural guardrail: it enforces your import rules on every build and every PR, so no AI-generated shortcut silently collapses your layers.
+
 ## Install
 
 **Homebrew (recommended):**
@@ -632,6 +642,16 @@ The same run doubles as an integration example: `init --freeze` generates a
 ready-to-use `.solid.yml` for the whole project (one layer per module, zero
 violations on day one), so the linter bites only when a *new* cross-module
 dependency appears.
+
+## Roadmap
+
+- [x] Architecture rules
+- [x] Import validation
+- [ ] Circular dependency detection
+- [ ] Feature boundary enforcement
+- [ ] AI PR review signals
+- [ ] Architecture graph visualization
+- [ ] Security check (Keychain misuse, cleartext HTTP, weak crypto, auth flaws, PII in logs)
 
 ## License
 
