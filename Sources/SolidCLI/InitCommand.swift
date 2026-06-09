@@ -11,6 +11,9 @@ struct Init: ParsableCommand {
     @Flag(help: "Freeze the current state: deny every local module a module doesn't import today (0 violations now, bites on new cross-module deps).")
     var freeze = false
 
+    @Flag(help: "Generate a TCA (The Composable Architecture 1.x) preset config with isolatePeers rules.")
+    var tca = false
+
     @Option(name: .shortAndLong, help: "Output file (default: <path>/.solid.yml).")
     var output: String?
 
@@ -31,7 +34,15 @@ struct Init: ParsableCommand {
             throw ExitCode.failure
         }
 
-        let mode: InitMode = freeze ? .freeze : .layered
+        let mode: InitMode
+        if tca {
+            mode = .tca
+        } else if freeze {
+            mode = .freeze
+        } else {
+            mode = .layered
+        }
+
         let generator = ConfigGenerator(root: path, packagesDir: packagesDir)
 
         let yaml: String
@@ -44,10 +55,13 @@ struct Init: ParsableCommand {
 
         try yaml.write(toFile: outputPath, atomically: true, encoding: .utf8)
 
-        // stdout summary.
         let layerCount = yaml.components(separatedBy: "\n  - name:").count - 1
         print("✅ SolidLikeARock: wrote \(outputPath)")
-        print("   mode: \(freeze ? "freeze" : "layered"), modules: \(layerCount)")
+        if tca {
+            print("   mode: tca, layers: \(layerCount)")
+        } else {
+            print("   mode: \(freeze ? "freeze" : "layered"), modules: \(layerCount)")
+        }
         if yaml.contains("# WARNING: import cycles") {
             print("   ⚠️  import cycles detected — see the comment header in the generated file.")
         }
