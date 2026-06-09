@@ -106,3 +106,53 @@ final class IntegrationTests: XCTestCase {
         XCTAssertTrue(violations.isEmpty, "clean files should not trip any rule: \(violations.map(\.diagnostic))")
     }
 }
+
+final class TCAIntegrationTests: XCTestCase {
+
+    private func tcaRoot() throws -> String {
+        let url = try XCTUnwrap(
+            Bundle.module.url(forResource: "Fixtures/TCAAppSample", withExtension: nil),
+            "TCAAppSample fixture missing from the test bundle"
+        )
+        return url.path
+    }
+
+    func testTCAAppSampleHasExactlyOnePeerViolation() throws {
+        let root = try tcaRoot()
+        let config = try Configuration.load(from: root + "/.solid.yml")
+        let linter = Linter(config: config)
+
+        let files = swiftFiles(under: root + "/Sources")
+        XCTAssertEqual(files.count, 8, "expected 8 Swift files in TCAAppSample")
+
+        let violations = try linter.lint(files: files)
+        XCTAssertEqual(violations.count, 1,
+            "expected exactly 1 violation, got \(violations.count): \(violations.map(\.diagnostic))")
+
+        let v = try XCTUnwrap(violations.first)
+        XCTAssertEqual(v.reason, .peerImport)
+        XCTAssertEqual(v.importedModule, "CounterFeature")
+        XCTAssertEqual(v.layer, "Features")
+        XCTAssertEqual((v.file as NSString).lastPathComponent, "LoginFeature.swift")
+    }
+
+    func testTCACleanFilesProduceNoViolations() throws {
+        let root = try tcaRoot()
+        let config = try Configuration.load(from: root + "/.solid.yml")
+        let linter = Linter(config: config)
+
+        let cleanFiles = [
+            "/Sources/Models/User.swift",
+            "/Sources/APIClient/APIClient.swift",
+            "/Sources/CounterFeature/CounterFeature.swift",
+            "/Sources/CounterFeature/CounterView.swift",
+            "/Sources/LoginFeature/LoginView.swift",
+            "/Sources/AppFeature/AppFeature.swift",
+            "/Sources/AppFeature/AppView.swift",
+        ].map { root + $0 }
+
+        let violations = try linter.lint(files: cleanFiles)
+        XCTAssertTrue(violations.isEmpty,
+            "clean files should not trip any rule: \(violations.map(\.diagnostic))")
+    }
+}
