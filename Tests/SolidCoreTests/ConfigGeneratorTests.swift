@@ -120,6 +120,63 @@ final class ConfigGeneratorTests: XCTestCase {
         // C is outermost (max rank): denies nothing.
         XCTAssertNil(config.layers.first { $0.name == "C" }?.deny)
     }
+
+    // MARK: TCA detection
+
+    func testTCADetectsFeatureModulesByNaming() throws {
+        // *Feature modules → Features layer with isolatePeers.
+        let root = try makeProject([
+            "CounterFeature": ["CounterFeature": ["Foundation", "Models"]],
+            "LoginFeature":   ["LoginFeature":   ["Foundation", "Models"]],
+            "Models":         ["User":           ["Foundation"]],
+        ])
+        let yaml = try ConfigGenerator(root: root, packagesDir: nil).generate(mode: .tca)
+        let config = try YAMLDecoderShim.decode(yaml)
+
+        let features = try XCTUnwrap(config.layers.first { $0.name == "Features" })
+        XCTAssertTrue(features.isolatePeers, "Features layer must have isolatePeers: true")
+        XCTAssertTrue(features.modules.contains("CounterFeature"))
+        XCTAssertTrue(features.modules.contains("LoginFeature"))
+
+        let models = try XCTUnwrap(config.layers.first { $0.name == "Models" })
+        XCTAssertFalse(models.isolatePeers)
+
+        // dependencyOrder must place Models before Features.
+        let order = config.dependencyOrder
+        let modelsIdx   = try XCTUnwrap(order.firstIndex(of: "Models"))
+        let featuresIdx = try XCTUnwrap(order.firstIndex(of: "Features"))
+        XCTAssertLessThan(modelsIdx, featuresIdx)
+    }
+
+    func testTCADetectsAppFeatureAsAppLayer() throws {
+        let root = try makeProject([
+            "AppFeature":     ["App":     ["CounterFeature"]],
+            "CounterFeature": ["Counter": ["Foundation"]],
+            "Models":         ["User":    ["Foundation"]],
+        ])
+        let yaml = try ConfigGenerator(root: root, packagesDir: nil).generate(mode: .tca)
+        let config = try YAMLDecoderShim.decode(yaml)
+
+        let app = try XCTUnwrap(config.layers.first { $0.name == "App" })
+        XCTAssertTrue(app.modules.contains("AppFeature"))
+
+        // AppFeature must NOT appear in the Features layer.
+        let features = config.layers.first { $0.name == "Features" }
+        XCTAssertFalse(features?.modules.contains("AppFeature") ?? false)
+    }
+
+    func testTCADetectsClientModulesAsDependencies() throws {
+        let root = try makeProject([
+            "APIClient":      ["Client": ["Foundation"]],
+            "CounterFeature": ["Counter": ["Foundation", "APIClient"]],
+        ])
+        let yaml = try ConfigGenerator(root: root, packagesDir: nil).generate(mode: .tca)
+        let config = try YAMLDecoderShim.decode(yaml)
+
+        let deps = try XCTUnwrap(config.layers.first { $0.name == "Dependencies" })
+        XCTAssertTrue(deps.isolatePeers)
+        XCTAssertTrue(deps.modules.contains("APIClient"))
+    }
 }
 
 /// Tiny helper to decode a YAML string into Configuration in tests.
