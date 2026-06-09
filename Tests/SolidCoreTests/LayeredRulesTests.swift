@@ -47,6 +47,27 @@ final class LayeredRulesTests: XCTestCase {
         XCTAssertEqual(config.dependencyOrder, ["Domain", "Application", "Infrastructure", "Presentation"])
     }
 
+    func testDecodesIsolatePeers() throws {
+        let path = try writeTempYAML("""
+        layers:
+          - name: Features
+            paths: [Sources/Features/**]
+            isolatePeers: true
+        """)
+        let config = try Configuration.load(from: path)
+        XCTAssertTrue(config.layers.first?.isolatePeers == true)
+    }
+
+    func testIsolatePeersDefaultsFalse() throws {
+        let path = try writeTempYAML("""
+        layers:
+          - name: Domain
+            paths: [Sources/Domain/**]
+        """)
+        let config = try Configuration.load(from: path)
+        XCTAssertFalse(config.layers.first?.isolatePeers == true)
+    }
+
     func testDependencyOrderDefaultsToEmpty() throws {
         let path = try writeTempYAML("""
         layers:
