@@ -1,0 +1,54 @@
+# .solid.yml — The Composable Architecture (TCA 1.x)
+#
+# Generate automatically: solid-like-a-rock init --tca [project-root]
+#
+# Dependency rule: dependencies point inward.
+#     App ──▶ Features ──▶ Dependencies ──▶ Models
+#
+# isolatePeers: true — modules in the same layer cannot import each other.
+# Features are peers; CounterFeature must not import LoginFeature.
+# The root AppFeature composer is the only module that imports feature peers.
+
+exclude:
+  - /.build/
+  - /Pods/
+  - checkouts
+
+alwaysAllow:
+  - Foundation
+  - SwiftUI
+  - Combine
+  - ComposableArchitecture    # TCA itself is always allowed everywhere
+
+# Innermost first; dependencies may only point inward.
+dependencyOrder: [Models, Dependencies, Features, App]
+
+layers:
+  # ── Innermost: pure domain types ──────────────────────────────────────────
+  - name: Models
+    modules: [Models]          # rename to match your project, e.g. [AppModels, SharedTypes]
+    paths: [Sources/Models/**]
+    allow: []                  # pure types: Foundation only (via alwaysAllow)
+
+  # ── Dependency interfaces (@DependencyClient / @DependencyKey) ────────────
+  - name: Dependencies
+    modules: [APIClient, DatabaseClient]   # list every *Client / *Service module
+    paths:
+      - Sources/APIClient/**
+      - Sources/DatabaseClient/**
+    isolatePeers: true         # APIClient must not import DatabaseClient
+
+  # ── Feature modules (@Reducer + View, one module per feature) ────────────
+  - name: Features
+    modules: [CounterFeature, LoginFeature, ProfileFeature]   # list every *Feature module
+    paths:
+      - Sources/CounterFeature/**
+      - Sources/LoginFeature/**
+      - Sources/ProfileFeature/**
+    isolatePeers: true         # features must not import sibling features
+
+  # ── Root composer ─────────────────────────────────────────────────────────
+  - name: App
+    modules: [AppFeature]
+    paths: [Sources/AppFeature/**]
+                               # root composer — imports all features, no restrictions
