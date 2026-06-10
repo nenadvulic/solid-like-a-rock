@@ -588,6 +588,27 @@ graph TD
   linkStyle 3 stroke:#e00,stroke-width:2px
 ```
 
+And on a real **88-module** app — [isowords](https://github.com/pointfreeco/isowords),
+Point-Free's open-source game — a hand-curated layer config collapses the whole
+package to its client architecture, every dependency pointing inward:
+
+```mermaid
+graph TD
+  Clients --> SharedModels
+  BuildingBlocks --> SharedModels
+  BuildingBlocks --> Clients
+  Features --> SharedModels
+  Features --> Clients
+  Features --> BuildingBlocks
+  ClientsLive --> SharedModels
+  ClientsLive --> Clients
+  ClientsLive --> BuildingBlocks
+  App --> SharedModels
+  App --> Clients
+  App --> BuildingBlocks
+  App --> Features
+```
+
 Regenerate it in CI so the committed diagram always tracks the code — fail the
 build if it drifts:
 
