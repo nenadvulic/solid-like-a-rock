@@ -104,6 +104,9 @@ solid-like-a-rock init ./MyApp
 
 # Multi-package project with a non-standard modules directory:
 solid-like-a-rock init --packages-dir Modules .
+
+# TCA (The Composable Architecture) project — groups into Models/Dependencies/Features/App:
+solid-like-a-rock init --tca ./MyTCAApp
 ```
 
 - **`--freeze`** — for each module, deny every *other* local module it doesn't
@@ -619,6 +622,38 @@ Works with whatever assistant your team uses — Claude Code, Cursor, Codex,
 Windsurf — since the guardrail lives in the build, not in the editor. Pair it
 with the [AI config prompt](#generate-a-config-with-ai) to bootstrap the rules,
 then let the linter keep every contributor honest, human or not.
+
+## Using with TCA
+
+[The Composable Architecture](https://github.com/pointfreeco/swift-composable-architecture) organises Swift apps into feature modules — each module owns its `@Reducer`, `View`, and `@DependencyClient`. The key architectural rule: **features are peers and must not import each other**. Only the root `AppFeature` composer imports child features.
+
+SolidLikeARock enforces this with the `isolatePeers: true` layer flag.
+
+### Three steps to adopt
+
+**1. Generate a TCA-aware config:**
+
+```bash
+solid-like-a-rock init --tca .
+```
+
+`init --tca` scans your project, groups modules into `Models / Dependencies / Features / App` layers by naming convention and `@Reducer` / `@DependencyClient` content, and generates a `.solid.yml` with `isolatePeers: true` on the right layers. Re-run with `--force` when you add feature modules.
+
+**2. Review and adjust** the generated config (rename layers, fix any unclassified modules).
+
+**3. Run the linter:**
+
+```bash
+solid-like-a-rock --config .solid.yml Sources
+```
+
+A peer violation looks like this:
+
+```
+Sources/LoginFeature/LoginFeature.swift:3: error: SolidLikeARock: layer 'Features' has isolatePeers enabled — must not import peer module 'CounterFeature'
+```
+
+A ready-to-use config template is at [`examples/tca.solid.yml`](examples/tca.solid.yml).
 
 ## Performance
 

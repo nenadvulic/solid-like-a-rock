@@ -14,6 +14,8 @@ public struct Violation: Equatable {
         /// declares a public symbol. `importedModule` carries the SYMBOL name,
         /// `layer` carries the MODULE name.
         case publicInLeafModule
+        /// The layer has `isolatePeers: true` and the import is a same-layer peer module.
+        case peerImport
     }
 
     public let file: String
@@ -60,6 +62,8 @@ public struct Violation: Equatable {
             return "layer '\(layer)' must not depend outward on '\(importedModule)'\(target)"
         case .publicInLeafModule:
             return "module '\(layer)' is not imported by any other module, but declares public symbol '\(importedModule)' — make it internal, or exclude the module"
+        case .peerImport:
+            return "layer '\(layer)' has isolatePeers enabled — must not import peer module '\(importedModule)'"
         }
     }
 

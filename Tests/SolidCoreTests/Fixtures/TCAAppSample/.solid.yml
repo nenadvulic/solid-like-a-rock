@@ -1,0 +1,30 @@
+# .solid.yml — The Composable Architecture (TCA 1.x)
+# Dependency rule: dependencies point inward.
+#     App ──▶ Features ──▶ Dependencies ──▶ Models
+
+alwaysAllow:
+  - Foundation
+  - SwiftUI
+
+dependencyOrder: [Models, Dependencies, Features, App]
+
+layers:
+  - name: Models
+    modules: [Models]
+    paths: [Sources/Models/**]
+    allow: []                    # pure types, nothing else
+
+  - name: Dependencies
+    modules: [APIClient]
+    paths: [Sources/APIClient/**]
+    isolatePeers: true           # clients must not import each other
+
+  - name: Features
+    modules: [CounterFeature, LoginFeature]
+    paths: [Sources/CounterFeature/**, Sources/LoginFeature/**]
+    isolatePeers: true           # features must not import sibling features
+
+  - name: App
+    modules: [AppFeature]
+    paths: [Sources/AppFeature/**]
+                                 # root composer — can import everything

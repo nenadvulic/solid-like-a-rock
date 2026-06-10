@@ -33,20 +33,23 @@ public struct LayerRule: Decodable, Equatable {
     public let deny: [String]?
     /// Severity for violations attributed to this layer. Defaults to `.error`.
     public let severity: Severity
+    /// When true, modules within this layer cannot import each other.
+    public let isolatePeers: Bool
 
     public init(name: String, paths: [String], modules: [String]? = nil,
                 allow: [String]? = nil, deny: [String]? = nil,
-                severity: Severity = .error) {
+                severity: Severity = .error, isolatePeers: Bool = false) {
         self.name = name
         self.modules = modules ?? [name]
         self.paths = paths
         self.allow = allow
         self.deny = deny
         self.severity = severity
+        self.isolatePeers = isolatePeers
     }
 
     enum CodingKeys: String, CodingKey {
-        case name, modules, paths, allow, deny, severity
+        case name, modules, paths, allow, deny, severity, isolatePeers
     }
 
     public init(from decoder: Decoder) throws {
@@ -58,6 +61,7 @@ public struct LayerRule: Decodable, Equatable {
         self.allow = try? c.decode([String].self, forKey: .allow)
         self.deny = try? c.decode([String].self, forKey: .deny)
         self.severity = (try? c.decode(Severity.self, forKey: .severity)) ?? .error
+        self.isolatePeers = (try? c.decode(Bool.self, forKey: .isolatePeers)) ?? false
     }
 }
 
