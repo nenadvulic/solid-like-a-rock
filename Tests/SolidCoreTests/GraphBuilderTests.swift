@@ -27,6 +27,22 @@ final class GraphBuilderTests: XCTestCase {
         ], "got: \(model.edges)")
     }
 
+    /// Layers absent from `dependencyOrder` are appended after the ordered ones,
+    /// in declaration order.
+    func testNodesAppendLayersMissingFromDependencyOrder() throws {
+        let config = Configuration(
+            layers: [
+                LayerRule(name: "A", paths: ["Sources/A"]),
+                LayerRule(name: "B", paths: ["Sources/B"]),
+                LayerRule(name: "C", paths: ["Sources/C"]),
+            ],
+            dependencyOrder: ["A", "B"]
+        )
+        let model = try GraphBuilder(config: config).build(files: [])
+        XCTAssertEqual(model.nodes, ["A", "B", "C"])
+        XCTAssertEqual(model.edges, [])
+    }
+
     /// CleanArchSample: the two intentional outward imports become red edges.
     func testCleanArchSampleMarksOutwardEdgesForbidden() throws {
         let root = try fixtureRoot("CleanArchSample")

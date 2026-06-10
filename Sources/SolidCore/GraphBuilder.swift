@@ -21,7 +21,6 @@ public struct GraphBuilder {
 
         // Aggregate by "from\u{0001}to". Forbidden wins over allowed; first
         // violation's reason becomes the label.
-        struct Agg { var verdict: GraphModel.Verdict; var reason: String? }
         var agg: [String: Agg] = [:]
 
         for file in files {
@@ -33,7 +32,9 @@ public struct GraphBuilder {
                 if fromLayer.name == toLayer.name, violation == nil { continue }  // drop intra-layer noise
                 let key = "\(fromLayer.name)\u{0001}\(toLayer.name)"
                 if let v = violation {
-                    agg[key] = Agg(verdict: .forbidden, reason: Self.reasonLabel(v.reason))
+                    if agg[key]?.verdict != .forbidden {
+                        agg[key] = Agg(verdict: .forbidden, reason: Self.reasonLabel(v.reason))
+                    }
                 } else if agg[key] == nil {
                     agg[key] = Agg(verdict: .allowed, reason: nil)
                 }
@@ -44,10 +45,12 @@ public struct GraphBuilder {
         let edges = agg.map { (key, a) -> GraphModel.Edge in
             let parts = key.split(separator: "\u{0001}", maxSplits: 1).map(String.init)
             return GraphModel.Edge(from: parts[0], to: parts[1], verdict: a.verdict, reason: a.reason)
-        }.sorted { (idx($0.from), idx($0.to), $0.to) < (idx($1.from), idx($1.to), $1.to) }
+        }.sorted { (idx($0.from), idx($0.to)) < (idx($1.from), idx($1.to)) }
 
         return GraphModel(nodes: nodes, edges: edges)
     }
+
+    private struct Agg { var verdict: GraphModel.Verdict; var reason: String? }
 
     private static func reasonLabel(_ r: Violation.Reason) -> String {
         switch r {
