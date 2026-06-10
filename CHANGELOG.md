@@ -5,7 +5,7 @@ All notable changes to SolidLikeARock. Versions follow the `swift-syntax`-friend
 
 ## [Unreleased]
 
-## [0.6.0]
+## [0.7.0]
 - **TCA support**: `isolatePeers: true` layer flag — modules within the same layer
   cannot import each other. Enforces the TCA rule that feature modules are peers
   and must not import siblings; only the root `AppFeature` composer may.
@@ -14,6 +14,8 @@ All notable changes to SolidLikeARock. Versions follow the `swift-syntax`-friend
   `@DependencyClient`), and generates a `dependencyOrder` config with
   `isolatePeers: true` on the Features and Dependencies layers.
 - **`examples/tca.solid.yml`**: ready-to-use TCA preset template.
+
+## [0.6.0]
 - Build-tool plugin: `SolidLikeARockBinary` binary target now resolves the
   **v0.5.0** artifactbundle (was pinned to v0.4.0 by the two-step release
   chicken-and-egg), so prebuild linting runs the current binary.
