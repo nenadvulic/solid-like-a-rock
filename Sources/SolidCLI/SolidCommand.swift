@@ -7,7 +7,7 @@ struct SolidLikeARock: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "solid-like-a-rock",
         abstract: "Enforce architectural import rules in Swift code (SOLID / Clean Architecture boundaries).",
-        subcommands: [Lint.self, Init.self],
+        subcommands: [Lint.self, Init.self, Graph.self],
         defaultSubcommand: Lint.self   // backwards compatible: bare invocation lints
     )
 }
