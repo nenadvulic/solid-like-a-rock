@@ -24,4 +24,18 @@ final class GraphRendererTests: XCTestCase {
 
         """)
     }
+
+    func testDotRendersForbiddenEdgesRed() {
+        let out = DotRenderer().render(model)
+        XCTAssertEqual(out, """
+        digraph architecture {
+          rankdir=TB;
+          "App" -> "Features";
+          "Features" -> "Models";
+          "Features" -> "Features" [color=red, style=dashed, label="peer"];
+          "Models" -> "Features" [color=red, style=dashed, label="outward"];
+        }
+
+        """)
+    }
 }

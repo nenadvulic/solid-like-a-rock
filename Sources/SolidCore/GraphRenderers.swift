@@ -23,3 +23,21 @@ public struct MermaidRenderer {
         return lines.joined(separator: "\n") + "\n"
     }
 }
+
+/// Renders a `GraphModel` as Graphviz DOT. Forbidden edges are dashed red.
+public struct DotRenderer {
+    public init() {}
+
+    public func render(_ model: GraphModel) -> String {
+        var lines = ["digraph architecture {", "  rankdir=TB;"]
+        for e in model.edges {
+            if e.verdict == .forbidden {
+                lines.append("  \"\(e.from)\" -> \"\(e.to)\" [color=red, style=dashed, label=\"\(e.reason ?? "")\"];")
+            } else {
+                lines.append("  \"\(e.from)\" -> \"\(e.to)\";")
+            }
+        }
+        lines.append("}")
+        return lines.joined(separator: "\n") + "\n"
+    }
+}
