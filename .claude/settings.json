@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/solid-lint-changed.sh",
+            "timeout": 30,
+            "statusMessage": "Checking architecture (solid-like-a-rock)…"
+          }
+        ]
+      }
+    ]
+  }
+}

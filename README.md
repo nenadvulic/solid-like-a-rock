@@ -550,6 +550,25 @@ files the PR touches and posts each violation as an inline comment on the exact
 line — so contributors are flagged for what they introduce, not for pre-existing
 debt. (The exit code still reflects whether violations were found.)
 
+### Claude Code (lint on every AI edit)
+
+When you let an AI agent edit your codebase, the linter only helps if it actually
+runs. A [Claude Code](https://docs.claude.com/en/docs/claude-code) **PostToolUse
+hook** runs it automatically after the agent touches a `.swift` file, and feeds
+any violation straight back so the agent fixes the boundary instead of moving on
+— the agent never decides whether to check.
+
+Copy the two files into the consuming project:
+
+- [`.claude/hooks/solid-lint-changed.sh`](.claude/hooks/solid-lint-changed.sh) — the hook script
+- [`.claude/settings.json`](.claude/settings.json) — wires it to `Edit|Write|MultiEdit`
+
+It is a silent no-op when the edited file is not Swift, no `.solid.yml` is found,
+or `solid-like-a-rock` is not on `PATH` — so it never gets in the way. On a
+violation it exits non-zero and Claude sees the diagnostics plus a reminder to
+fix the boundary (move shared code inward / inject via an interface) rather than
+relax the rule. This repository dogfoods the hook on its own sources.
+
 ## Example project
 
 A runnable 4-layer Clean Architecture sample lives at
