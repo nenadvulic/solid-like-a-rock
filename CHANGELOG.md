@@ -5,6 +5,19 @@ All notable changes to SolidLikeARock. Versions follow the `swift-syntax`-friend
 
 ## [Unreleased]
 
+## [0.8.0]
+- **Architecture graph** (`graph` subcommand): emit a layer-level diagram of your
+  modules straight from the real import graph — Mermaid (default, renders natively
+  in a GitHub README/PR) or DOT (`--format dot`). Rule-violating edges are drawn
+  red. A visualization, not a gate (always exits 0); reuses the existing engine,
+  no new dependencies.
+- **Claude Code integration**: a `PostToolUse` hook
+  (`.claude/hooks/solid-lint-changed.sh` + `.claude/settings.json`) runs the linter
+  automatically after an agent edits a `.swift` file and feeds any violation back,
+  so the boundary gets fixed in the same turn. See `.claude/README.md`.
+- Docs: "Architecture graph" README section (bundled TCA sample + an isowords
+  88-module real-world example) and a TCA `isolatePeers` demo GIF (`demo/tca.tape`).
+
 ## [0.7.0]
 - **TCA support**: `isolatePeers: true` layer flag — modules within the same layer
   cannot import each other. Enforces the TCA rule that feature modules are peers

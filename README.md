@@ -409,7 +409,7 @@ fetch a pinned release binary into a gitignored cache. Add a
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION="v0.7.0"
+VERSION="v0.8.0"
 # Universal binary (arm64 + x86_64) since v0.4.2 — no arch detection needed.
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -496,7 +496,7 @@ locally and in CI:
 ```swift
 // your Package.swift
 dependencies: [
-    .package(url: "https://github.com/nenadvulic/solid-like-a-rock", from: "0.7.0"),
+    .package(url: "https://github.com/nenadvulic/solid-like-a-rock", from: "0.8.0"),
 ],
 ```
 
@@ -519,7 +519,7 @@ so no compile-from-source cost:
 ```swift
 // your Package.swift
 dependencies: [
-    .package(url: "https://github.com/nenadvulic/solid-like-a-rock", from: "0.7.0"),
+    .package(url: "https://github.com/nenadvulic/solid-like-a-rock", from: "0.8.0"),
 ],
 targets: [
     .target(
