@@ -1,0 +1,24 @@
+# The Composable Architecture (TCA 1.x) — dependencies point inward.
+#     App ──▶ Features ──▶ Models
+alwaysAllow:
+  - Foundation
+  - SwiftUI
+  - ComposableArchitecture
+
+dependencyOrder: [Models, Features, App]
+
+layers:
+  - name: Models
+    modules: [Models]
+    paths: ["Sources/Models/**"]
+    allow: []                     # pure types only
+
+  - name: Features
+    modules: [CounterFeature, LoginFeature]
+    paths: ["Sources/CounterFeature/**", "Sources/LoginFeature/**"]
+    isolatePeers: true            # features must not import sibling features
+
+  - name: App
+    modules: [AppFeature]
+    paths: ["Sources/AppFeature/**"]
+                                  # root composer — imports every feature

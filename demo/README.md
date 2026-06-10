@@ -9,6 +9,7 @@ any release so they never go stale.
 | `demo.tape` | `demo.gif` | The pitch: a forbidden import → ❌ → fix → ✅ |
 | `init-freeze.tape` | `init-freeze.gif` | `init --freeze`: adopt on an existing codebase with zero violations, bites on new cross-module deps |
 | `baseline.tape` | `baseline.gif` | `--write-baseline` / `--baseline`: only new violations fail |
+| `tca.tape` | `tca.gif` | TCA `isolatePeers`: a feature imports a sibling → ❌ → fix → ✅ (needs solid-like-a-rock ≥ v0.7.0) |
 
 ## Re-render
 
@@ -20,6 +21,7 @@ cd demo
 vhs demo.tape
 vhs init-freeze.tape
 vhs baseline.tape
+vhs tca.tape          # requires solid-like-a-rock >= v0.7.0
 ```
 
 Each tape contains hidden setup/teardown steps that (re)plant or clean up the
@@ -33,3 +35,6 @@ times as you like.
   (`import Data` in the Presentation layer).
 - `fixture-init/` — clean multi-module sample used by `init-freeze.tape`; the
   tape generates `.solid.yml` on camera and removes it afterwards.
+- `fixture-tca/` — minimal TCA sample (Models + two feature modules + an
+  AppFeature composer) used by `tca.tape`. Its committed state contains one
+  deliberate violation (`LoginFeature` importing the sibling `CounterFeature`).
