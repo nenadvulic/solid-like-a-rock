@@ -655,6 +655,10 @@ Sources/LoginFeature/LoginFeature.swift:3: error: SolidLikeARock: layer 'Feature
 
 A ready-to-use config template is at [`examples/tca.solid.yml`](examples/tca.solid.yml).
 
+<p align="center">
+  <img src="demo/tca.gif" alt="Demo: a TCA feature imports a sibling feature, isolatePeers catches it, the import is removed, and the lint goes green" width="720">
+</p>
+
 ## Performance
 
 Measured on a real project — [isowords](https://github.com/pointfreeco/isowords),
