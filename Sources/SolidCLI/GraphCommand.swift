@@ -34,6 +34,11 @@ struct Graph: ParsableCommand {
         let configuration: Configuration
         do {
             configuration = try Configuration.load(from: configPath)
+        } catch {
+            FileHandle.standardError.write(Data("SolidLikeARock: failed to load config '\(configPath)': \(error)\n".utf8))
+            throw ExitCode.failure
+        }
+        do {
             try configuration.validate()
         } catch {
             FileHandle.standardError.write(Data("SolidLikeARock: invalid config '\(configPath)': \(error)\n".utf8))
