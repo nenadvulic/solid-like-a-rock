@@ -564,6 +564,41 @@ and [`.claude/settings.json`](.claude/settings.json) into the consuming project.
 See [`.claude/README.md`](.claude/README.md) for activation, example output, the
 `SOLID_BIN` override, and a `Stop`-hook alternative.
 
+### Architecture graph
+
+Generate an always-accurate diagram of your layers straight from the real import
+graph — forbidden edges show up red. It renders natively in a GitHub README/PR
+(Mermaid) and never goes stale, because it's generated, not drawn.
+
+```bash
+solid-like-a-rock graph --config .solid.yml Sources         # Mermaid (default)
+solid-like-a-rock graph --format dot Sources | dot -Tsvg > architecture.svg
+```
+
+Example — the bundled TCA sample, where one feature imports a sibling feature
+(`isolatePeers`), so that edge is flagged red:
+
+```mermaid
+graph TD
+  Dependencies --> Models
+  Features --> Models
+  Features --> Dependencies
+  Features -->|❌ peer| Features
+  App --> Features
+  linkStyle 3 stroke:#e00,stroke-width:2px
+```
+
+Regenerate it in CI so the committed diagram always tracks the code — fail the
+build if it drifts:
+
+```yaml
+# .github/workflows/architecture-graph.yml (excerpt)
+- run: |
+    solid-like-a-rock graph --config .solid.yml Sources > docs/architecture.mmd
+    git diff --exit-code docs/architecture.mmd \
+      || { echo "::error::architecture.mmd is stale — regenerate and commit it"; exit 1; }
+```
+
 ## Example project
 
 A runnable 4-layer Clean Architecture sample lives at
@@ -703,7 +738,7 @@ dependency appears.
 - [ ] Circular dependency detection
 - [ ] Feature boundary enforcement
 - [ ] AI PR review signals
-- [ ] Architecture graph visualization
+- [x] Architecture graph visualization
 - [ ] Security check (Keychain misuse, cleartext HTTP, weak crypto, auth flaws, PII in logs)
 
 ## License
