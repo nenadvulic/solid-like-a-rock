@@ -31,6 +31,9 @@ public struct Violation: Equatable {
     /// Whether this violation fails the build (`.error`) or just warns.
     public let severity: Severity
     /// For `.securityIssue`, the human-readable finding message.
+    ///
+    /// Convention: `.securityIssue` violations should be built via the `security(...)` factory
+    /// so `detail` is always set; the `message` property falls back to "security issue" otherwise.
     public let detail: String?
 
     public init(file: String, line: Int, importedModule: String, layer: String,

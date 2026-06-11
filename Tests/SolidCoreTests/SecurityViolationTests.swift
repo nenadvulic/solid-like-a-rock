@@ -23,7 +23,7 @@ final class SecurityViolationTests: XCTestCase {
             "Sources/A/Hash.swift:7: error: SolidLikeARock: [insecureHash] Insecure.MD5 is not collision-resistant — use SHA256")
     }
 
-    func testBaselineDistinguishesRulesAndIgnoresLines() throws {
+    func testBaselineDistinguishesRulesAndIgnoresLines() {
         let other = Violation.security(ruleID: "hardcodedSecret", category: "Crypto",
                                        message: "x", file: "Sources/A/Hash.swift", line: 9, severity: .error)
         let baseline = Baseline(violations: [v])
@@ -38,10 +38,18 @@ final class SecurityViolationTests: XCTestCase {
         XCTAssertTrue(json.contains("\"reason\" : \"securityIssue\""))
         XCTAssertTrue(json.contains("\"module\" : \"insecureHash\""))
         XCTAssertTrue(json.contains("\"layer\" : \"Crypto\""))
+        XCTAssertTrue(json.contains("\"message\" : \"[insecureHash] Insecure.MD5 is not collision-resistant — use SHA256\""))
     }
 
     func testGitHubReporterRendersSecurityViolation() {
         XCTAssertEqual(renderGitHub([v]),
             "::error file=Sources/A/Hash.swift,line=7::SolidLikeARock: [insecureHash] Insecure.MD5 is not collision-resistant — use SHA256")
+    }
+
+    func testFallbackMessageWhenDetailIsNil() {
+        // Reachable via the memberwise init only; the factory always sets detail.
+        let bare = Violation(file: "F.swift", line: 1, importedModule: "someRule",
+                             layer: "Crypto", reason: .securityIssue, severity: .error)
+        XCTAssertEqual(bare.message, "[someRule] security issue")
     }
 }
