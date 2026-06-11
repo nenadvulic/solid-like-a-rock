@@ -16,6 +16,9 @@ public struct Violation: Equatable {
         case publicInLeafModule
         /// The layer has `isolatePeers: true` and the import is a same-layer peer module.
         case peerImport
+        /// A security rule fired. `importedModule` carries the RULE ID,
+        /// `layer` carries the CATEGORY, `detail` the human message.
+        case securityIssue
     }
 
     public let file: String
@@ -27,9 +30,12 @@ public struct Violation: Equatable {
     public let targetLayer: String?
     /// Whether this violation fails the build (`.error`) or just warns.
     public let severity: Severity
+    /// For `.securityIssue`, the human-readable finding message.
+    public let detail: String?
 
     public init(file: String, line: Int, importedModule: String, layer: String,
-                reason: Reason, targetLayer: String? = nil, severity: Severity = .error) {
+                reason: Reason, targetLayer: String? = nil, severity: Severity = .error,
+                detail: String? = nil) {
         self.file = file
         self.line = line
         self.importedModule = importedModule
@@ -37,6 +43,7 @@ public struct Violation: Equatable {
         self.reason = reason
         self.targetLayer = targetLayer
         self.severity = severity
+        self.detail = detail
     }
 
     /// Build a `.publicInLeafModule` violation. The existing fields are reused
@@ -48,6 +55,15 @@ public struct Violation: Equatable {
                                           severity: Severity) -> Violation {
         Violation(file: file, line: line, importedModule: symbol,
                   layer: module, reason: .publicInLeafModule, severity: severity)
+    }
+
+    /// Build a `.securityIssue` violation. Field reuse keeps reporter/baseline
+    /// compatibility: `importedModule` carries the RULE ID (so the baseline
+    /// key `file+module+reason` distinguishes rules) and `layer` the category.
+    public static func security(ruleID: String, category: String, message: String,
+                                file: String, line: Int, severity: Severity) -> Violation {
+        Violation(file: file, line: line, importedModule: ruleID, layer: category,
+                  reason: .securityIssue, severity: severity, detail: message)
     }
 
     /// A human-readable explanation of the violation.
@@ -64,6 +80,8 @@ public struct Violation: Equatable {
             return "module '\(layer)' is not imported by any other module, but declares public symbol '\(importedModule)' — make it internal, or exclude the module"
         case .peerImport:
             return "layer '\(layer)' has isolatePeers enabled — must not import peer module '\(importedModule)'"
+        case .securityIssue:
+            return "[\(importedModule)] \(detail ?? "security issue")"
         }
     }
 

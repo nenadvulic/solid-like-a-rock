@@ -59,6 +59,7 @@ public struct GraphBuilder {
         case .deniedImport:      return "deny"
         case .notAllowedImport:  return "not allowed"
         case .publicInLeafModule: return "visibility"
+        case .securityIssue:      return "security"
         }
     }
 }
