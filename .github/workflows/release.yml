@@ -108,3 +108,45 @@ jobs:
             solid-like-a-rock-linux-aarch64.tar.gz
             solid-like-a-rock-linux-aarch64.tar.gz.sha256
           generate_release_notes: true
+
+  bump-homebrew:
+    name: Bump Homebrew formula
+    needs: [publish]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch the macOS universal checksum
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-assets
+
+      - name: Check out the Homebrew tap
+        uses: actions/checkout@v4
+        with:
+          repository: nenadvulic/homebrew-solid-like-a-rock
+          # GITHUB_TOKEN can't push to another repo — needs a PAT with
+          # Contents:write on the tap, stored as the HOMEBREW_TAP_TOKEN secret.
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: tap
+
+      - name: Bump version + sha256 in the formula
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          SHA="$(cut -d ' ' -f1 solid-like-a-rock-macos-universal.tar.gz.sha256)"
+          FORMULA="tap/Formula/solid-like-a-rock.rb"
+          # The url is templated on v#{version}, so only these two lines change.
+          sed -i -E "s/^  version \"[^\"]+\"/  version \"${VERSION}\"/" "$FORMULA"
+          sed -i -E "s/^  sha256 \"[0-9a-f]+\"/  sha256 \"${SHA}\"/" "$FORMULA"
+          echo "Bumped to ${VERSION} (sha256 ${SHA})"
+          grep -E '^  (version|sha256) ' "$FORMULA"
+
+      - name: Commit and push to the tap
+        working-directory: tap
+        run: |
+          if git diff --quiet; then
+            echo "Formula already up to date — nothing to push."
+            exit 0
+          fi
+          git config user.name "Nenad VULIC"
+          git config user.email "nenad@keeponapps.com"
+          git commit -am "solid-like-a-rock ${GITHUB_REF_NAME#v}"
+          git push
