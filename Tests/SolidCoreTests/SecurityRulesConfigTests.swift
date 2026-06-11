@@ -91,4 +91,16 @@ final class SecurityRulesConfigTests: XCTestCase {
         XCTAssertFalse(s.isEnabled(ruleID: "insecureHash"))
         XCTAssertTrue(s.isEnabled(ruleID: "hardcodedSecret"))
     }
+
+    func testMalformedLayersThrowsAtDecode() {
+        // A layer entry missing `paths` must fail loudly, not silently become [].
+        let yaml = "layers:\n  - name: A\n"
+        XCTAssertThrowsError(try decode(yaml))
+    }
+
+    func testMalformedSecuritySectionThrowsAtDecode() {
+        // `security:` as a list is a config mistake, not "security off".
+        let yaml = "layers:\n  - name: A\n    paths: [Sources/A/**]\nsecurity:\n  - enabled\n"
+        XCTAssertThrowsError(try decode(yaml))
+    }
 }

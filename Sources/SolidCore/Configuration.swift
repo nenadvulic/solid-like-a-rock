@@ -140,11 +140,11 @@ public struct Configuration: Decodable, Equatable {
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         self.alwaysAllow = (try? c.decode([String].self, forKey: .alwaysAllow)) ?? []
-        self.layers = (try? c.decode([LayerRule].self, forKey: .layers)) ?? []
+        self.layers = try c.decodeIfPresent([LayerRule].self, forKey: .layers) ?? []
         self.exclude = (try? c.decode([String].self, forKey: .exclude)) ?? []
         self.dependencyOrder = (try? c.decode([String].self, forKey: .dependencyOrder)) ?? []
         self.visibility = try? c.decode(VisibilityRules.self, forKey: .visibility)
-        self.security = try? c.decode(SecurityRules.self, forKey: .security)
+        self.security = try c.decodeIfPresent(SecurityRules.self, forKey: .security)
     }
 
     /// Load and decode a configuration from a YAML file on disk.
@@ -190,7 +190,7 @@ public struct Configuration: Decodable, Equatable {
 }
 
 /// Errors raised by `Configuration.validate()`.
-public enum ConfigurationError: Error, Equatable {
+public enum ConfigurationError: Error, Equatable, CustomStringConvertible {
     /// A module is declared by more than one layer (with the owning layer names).
     case duplicateModule(String, [String])
     /// `dependencyOrder` references a layer name that no layer declares.
@@ -199,4 +199,17 @@ public enum ConfigurationError: Error, Equatable {
     case unknownSecurityRule(String)
     /// No layers, no security, no visibility — the config would check nothing.
     case nothingToCheck
+
+    public var description: String {
+        switch self {
+        case .duplicateModule(let m, let layers):
+            return "module '\(m)' is declared by more than one layer: \(layers.joined(separator: ", "))"
+        case .unknownLayerInOrder(let name):
+            return "dependencyOrder references unknown layer '\(name)'"
+        case .unknownSecurityRule(let id):
+            return "security config references unknown rule '\(id)' — check for typos (a typo would silently disable the rule)"
+        case .nothingToCheck:
+            return "config has no layers, no enabled security checks and no visibility rule — nothing would be checked; add one of them"
+        }
+    }
 }

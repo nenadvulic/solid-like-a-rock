@@ -44,6 +44,9 @@ public struct SecurityRules: Decodable, Equatable {
         rules[ruleID]?.severity ?? severity ?? builtInDefault
     }
 
+    /// Returns whether the given rule is enabled (i.e. not in `disable`).
+    /// NOTE: this intentionally does NOT check the master `enabled` flag —
+    /// the engine guards on `enabled` separately before calling this method.
     public func isEnabled(ruleID: String) -> Bool {
         !disable.contains(ruleID)
     }
