@@ -114,14 +114,18 @@ public struct Configuration: Decodable, Equatable {
     /// Opt-in visibility rule. `nil` when the `visibility:` section is absent,
     /// so existing configs are unaffected.
     public let visibility: VisibilityRules?
+    /// Opt-in security checks. `nil` when the `security:` section is absent.
+    public let security: SecurityRules?
 
-    public init(alwaysAllow: [String] = [], layers: [LayerRule], exclude: [String] = [],
-                dependencyOrder: [String] = [], visibility: VisibilityRules? = nil) {
+    public init(alwaysAllow: [String] = [], layers: [LayerRule] = [], exclude: [String] = [],
+                dependencyOrder: [String] = [], visibility: VisibilityRules? = nil,
+                security: SecurityRules? = nil) {
         self.alwaysAllow = alwaysAllow
         self.layers = layers
         self.exclude = exclude
         self.dependencyOrder = dependencyOrder
         self.visibility = visibility
+        self.security = security
     }
 
     enum CodingKeys: String, CodingKey {
@@ -130,15 +134,17 @@ public struct Configuration: Decodable, Equatable {
         case exclude
         case dependencyOrder
         case visibility
+        case security
     }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         self.alwaysAllow = (try? c.decode([String].self, forKey: .alwaysAllow)) ?? []
-        self.layers = try c.decode([LayerRule].self, forKey: .layers)
+        self.layers = (try? c.decode([LayerRule].self, forKey: .layers)) ?? []
         self.exclude = (try? c.decode([String].self, forKey: .exclude)) ?? []
         self.dependencyOrder = (try? c.decode([String].self, forKey: .dependencyOrder)) ?? []
         self.visibility = try? c.decode(VisibilityRules.self, forKey: .visibility)
+        self.security = try? c.decode(SecurityRules.self, forKey: .security)
     }
 
     /// Load and decode a configuration from a YAML file on disk.
@@ -165,6 +171,21 @@ public struct Configuration: Decodable, Equatable {
         for name in dependencyOrder where !known.contains(name) {
             throw ConfigurationError.unknownLayerInOrder(name)
         }
+        // Security rule IDs must exist (a typo must not silently disable a rule).
+        if let security {
+            let knownRules = SecurityRuleRegistry.allRuleIDs
+            for id in security.disable where !knownRules.contains(id) {
+                throw ConfigurationError.unknownSecurityRule(id)
+            }
+            for id in security.rules.keys where !knownRules.contains(id) {
+                throw ConfigurationError.unknownSecurityRule(id)
+            }
+        }
+        // A config that checks nothing is a mistake, not a green build.
+        if layers.isEmpty, !(security?.enabled ?? false),
+           !(visibility?.warnPublicInLeafModules ?? false) {
+            throw ConfigurationError.nothingToCheck
+        }
     }
 }
 
@@ -174,4 +195,8 @@ public enum ConfigurationError: Error, Equatable {
     case duplicateModule(String, [String])
     /// `dependencyOrder` references a layer name that no layer declares.
     case unknownLayerInOrder(String)
+    /// `security.disable`/`security.rules` references an unknown rule ID.
+    case unknownSecurityRule(String)
+    /// No layers, no security, no visibility — the config would check nothing.
+    case nothingToCheck
 }
