@@ -109,6 +109,23 @@ jobs:
             solid-like-a-rock-linux-aarch64.tar.gz.sha256
           generate_release_notes: true
 
+  publish-action:
+    name: Publish the GitHub Action
+    needs: [publish]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify the action repo to tag + release a new version
+        env:
+          # GITHUB_TOKEN can't dispatch to another repo — needs a PAT with
+          # Contents:write on nenadvulic/solid-like-a-rock-action, stored as
+          # the ACTION_REPO_TOKEN secret.
+          GH_TOKEN: ${{ secrets.ACTION_REPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          jq -n --arg v "$GITHUB_REF_NAME" \
+            '{event_type: "tool-released", client_payload: {tool_version: $v}}' \
+            | gh api repos/nenadvulic/solid-like-a-rock-action/dispatches --input -
+
   bump-homebrew:
     name: Bump Homebrew formula
     needs: [publish]
