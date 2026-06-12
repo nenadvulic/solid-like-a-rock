@@ -1,0 +1,20 @@
+# Security checks only — no architecture rules required.
+# Drop this file at your project root as `.solid.yml` and run:
+#   solid-like-a-rock lint Sources
+#
+# 14 rules across Keychain / Crypto / Network / Auth / Logging.
+# Provable patterns default to error, heuristics to warning.
+
+security:
+  enabled: true
+
+  # Optional: override every rule's default severity.
+  # severity: warning
+
+  # Optional: turn rules off entirely.
+  # disable: [highEntropySecret]
+
+  # Optional: tune one rule.
+  # rules:
+  #   printSensitiveData:
+  #     severity: error
