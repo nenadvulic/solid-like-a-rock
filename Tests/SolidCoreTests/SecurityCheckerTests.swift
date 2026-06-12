@@ -146,6 +146,32 @@ final class SecurityCheckerTests: XCTestCase {
         XCTAssertEqual(violations.count, 1)   // nil node → cannot be suppressed
     }
 
+    func testPlistCheckRunsThroughFullEntryPoint() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("sec-full-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let data = try PropertyListSerialization.data(
+            fromPropertyList: ["NSAppTransportSecurity": ["NSAllowsArbitraryLoads": true]],
+            format: .xml, options: 0)
+        try data.write(to: root.appendingPathComponent("Info.plist"))
+        let violations = SecurityChecker(config: SecurityRules(enabled: true), rules: [])
+            .check(swiftFiles: [], roots: [root.path], excluding: [])
+        XCTAssertEqual(violations.first?.importedModule, "cleartextHTTP")
+    }
+
+    func testDisabledPlistCheckProducesNothing() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("sec-full-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let data = try PropertyListSerialization.data(
+            fromPropertyList: ["NSAppTransportSecurity": ["NSAllowsArbitraryLoads": true]],
+            format: .xml, options: 0)
+        try data.write(to: root.appendingPathComponent("Info.plist"))
+        let violations = SecurityChecker(config: SecurityRules(enabled: true, disable: ["cleartextHTTP"]), rules: [])
+            .check(swiftFiles: [], roots: [root.path], excluding: [])
+        XCTAssertTrue(violations.isEmpty)
+    }
+
     // MARK: - matchesSensitiveName
 
     func testSensitiveNamesMatch() {

@@ -38,4 +38,17 @@ public struct SecurityChecker {
         }
         return violations
     }
+
+    /// Full check: Swift rules over the collected files + the plist ATS check
+    /// under the lint roots.
+    public func check(swiftFiles: [String], roots: [String], excluding: [String]) -> [Violation] {
+        guard config.enabled else { return [] }
+        var violations = check(swiftFiles: swiftFiles)
+        if config.isEnabled(ruleID: PlistATSCheck.id) {
+            let severity = config.effectiveSeverity(ruleID: PlistATSCheck.id,
+                                                    builtInDefault: PlistATSCheck.defaultSeverity)
+            violations += PlistATSCheck(severity: severity).check(roots: roots, excluding: excluding)
+        }
+        return violations
+    }
 }
