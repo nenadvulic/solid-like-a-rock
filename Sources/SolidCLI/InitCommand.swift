@@ -14,6 +14,9 @@ struct Init: ParsableCommand {
     @Flag(help: "Generate a TCA (The Composable Architecture 1.x) preset config with isolatePeers rules.")
     var tca = false
 
+    @Flag(help: "Enable the security checks section (composable with --tca/--freeze; alone, generates a security-only config).")
+    var security = false
+
     @Option(name: .shortAndLong, help: "Output file (default: <path>/.solid.yml).")
     var output: String?
 
@@ -47,7 +50,11 @@ struct Init: ParsableCommand {
 
         let yaml: String
         do {
-            yaml = try generator.generate(mode: mode)
+            let base = try generator.generate(mode: mode)
+            yaml = security ? base + ConfigGenerator.securitySection() : base
+        } catch ConfigGeneratorError.noModules where security {
+            // --security alone on an empty/module-less project: emit a standalone preset.
+            yaml = ConfigGenerator.securityPreset()
         } catch {
             FileHandle.standardError.write(Data("SolidLikeARock: init failed: \(error)\n".utf8))
             throw ExitCode.failure
@@ -61,6 +68,9 @@ struct Init: ParsableCommand {
             print("   mode: tca, layers: \(layerCount)")
         } else {
             print("   mode: \(freeze ? "freeze" : "layered"), modules: \(layerCount)")
+        }
+        if security {
+            print("   security checks: enabled")
         }
         if yaml.contains("# WARNING: import cycles") {
             print("   ⚠️  import cycles detected — see the comment header in the generated file.")
