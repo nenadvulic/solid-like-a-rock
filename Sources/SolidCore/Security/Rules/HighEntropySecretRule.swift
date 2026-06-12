@@ -32,6 +32,12 @@ public struct HighEntropySecretRule: SecurityRule {
                 // Negative fixtures: all-'a' (entropy 0.0), English sentence (excluded
                 // by charset gate — contains spaces and period), short strings (length gate).
                 guard let value = plainTextValue(of: node) else { return .skipChildren }
+                // Alphabet/charset tables (e.g. the base64 alphabet) are
+                // high-entropy by construction but never secrets: every
+                // character is distinct. Real keys drawn from a <= 64-symbol
+                // alphabet repeat characters at the lengths we gate on
+                // (P(no repeat) < 5% at 20 chars, ~0 at 40+).
+                guard Set(value).count < value.count else { return .skipChildren }
                 let passes: Bool
                 if Self.isHexCharset(value) {
                     passes = value.count >= 32 && Self.shannonEntropy(value) > 3.5

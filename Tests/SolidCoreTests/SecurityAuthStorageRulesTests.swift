@@ -92,6 +92,19 @@ final class SecurityAuthStorageRulesTests: XCTestCase {
         XCTAssertEqual(findings.count, 1)
     }
 
+    func testCanEvaluatePolicyResultUnusedIsNotFlagged() {
+        // Regression (Signal-iOS): a bare statement call made only for its
+        // documented side effect (it must precede reading biometryType) makes
+        // no auth decision — there is no ignored failure path.
+        XCTAssertTrue(runRule(BiometryNoErrorHandlingRule(),
+            on: "context.canEvaluatePolicy(.deviceOwnerAuthentication, error: nil)\n").isEmpty)
+    }
+
+    func testCanEvaluatePolicyResultBoundWithNilErrorStaysFlagged() {
+        XCTAssertEqual(runRule(BiometryNoErrorHandlingRule(),
+            on: "let ok = context.canEvaluatePolicy(.deviceOwnerAuthentication, error: nil)\n").count, 1)
+    }
+
     func testCanEvaluatePolicyWithErrorPointerIsNotFlagged() {
         XCTAssertTrue(runRule(BiometryNoErrorHandlingRule(),
             on: "if context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) { }\n").isEmpty)

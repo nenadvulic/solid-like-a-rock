@@ -27,6 +27,9 @@ public struct HardcodedSecretRule: SecurityRule {
                           matchesSensitiveName(name, words: secretNameWords),
                           let literal = binding.initializer?.value.as(StringLiteralExprSyntax.self),
                           let value = plainTextValue(of: literal),
+                          // A literal that echoes its own identifier is a key
+                          // NAME by construction, never a secret value.
+                          value != name,
                           Self.looksLikeRealSecret(value) else { continue }
                     findings.append(SecurityFinding(
                         line: binding.startLocation(converter: converter).line,
@@ -52,7 +55,31 @@ public struct HardcodedSecretRule: SecurityRule {
                 // identifiers/names. Trade-off: an alpha-only password with no digits or
                 // separators is exempted too — accepted; real secrets carry digit/symbol entropy.
                 if !value.isEmpty && value.allSatisfy(isASCIILetter) { return false }
+                // Identifier-shaped phrases are key NAMES, not secrets:
+                // "kNSUserDefaults_FirstAppVersion", "x-signal-checksum-sha256",
+                // "v2/keys/signed", "Screen Security Key". Random keys fail the
+                // word shape via interior digits ("K7MDENG") or long digit runs
+                // ("abcdef123456").
+                if isIdentifierPhrase(value) { return false }
                 return true
+            }
+            /// `word(sep word)+` with sep in `_ - / space` and every word
+            /// shaped `[A-Za-z]+[0-9]{0,3}` — letters with at most a short
+            /// trailing digit run ("sha256", "v2", "Production").
+            static func isIdentifierPhrase(_ value: String) -> Bool {
+                let words = value.split(omittingEmptySubsequences: false,
+                                        whereSeparator: { "_-/ ".contains($0) })
+                guard words.count >= 2 else { return false }
+                return words.allSatisfy(isWordShaped)
+            }
+            static func isWordShaped(_ word: Substring) -> Bool {
+                guard !word.isEmpty else { return false }
+                guard let firstNonLetter = word.firstIndex(where: { !isASCIILetter($0) }) else {
+                    return true // pure-alpha word
+                }
+                guard firstNonLetter != word.startIndex else { return false }
+                let digits = word[firstNonLetter...]
+                return digits.count <= 3 && digits.allSatisfy { ("0"..."9").contains($0) }
             }
             /// `seg(.seg)+` where every segment is an identifier (`[A-Za-z_][A-Za-z0-9_-]*`)
             /// of at most 20 characters.

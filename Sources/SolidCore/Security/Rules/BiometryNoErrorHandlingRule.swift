@@ -24,6 +24,10 @@ public struct BiometryNoErrorHandlingRule: SecurityRule {
                       let errorArg = node.arguments.first(where: { $0.label?.text == "error" }),
                       errorArg.expression.is(NilLiteralExprSyntax.self)
                 else { return .visitChildren }
+                // A bare statement call discards the RESULT too: it makes no
+                // auth decision, so there is no ignored failure path. This is
+                // the documented idiom to populate `biometryType`.
+                if node.parent?.is(CodeBlockItemSyntax.self) == true { return .visitChildren }
                 findings.append(SecurityFinding(
                     line: node.startLocation(converter: converter).line,
                     message: "canEvaluatePolicy(_, error: nil) discards the failure reason — pass &error and handle lockout / not-enrolled cases",
