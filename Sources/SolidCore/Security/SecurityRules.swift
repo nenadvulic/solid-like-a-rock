@@ -52,10 +52,7 @@ public struct SecurityRules: Decodable, Equatable {
     }
 }
 
-/// Central registry of every security rule.
-/// TRANSITIONAL: while makeAllRules() is partial, validate() rejects
-/// documented-but-unregistered rule IDs; the registry must be complete
-/// before release.
+/// Single source of truth for rule IDs used by config validation.
 public enum SecurityRuleRegistry {
     /// Every shipping rule. Grows task by task; the Info.plist ATS check is
     /// separate (not a SecurityRule — it reads plists, not Swift trees) but

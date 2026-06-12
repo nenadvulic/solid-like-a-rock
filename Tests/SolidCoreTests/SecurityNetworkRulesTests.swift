@@ -92,6 +92,13 @@ final class SecurityNetworkRulesTests: XCTestCase {
         XCTAssertEqual(findings.count, 1)
     }
 
+    func testIPv6LoopbackIsNotFlagged() {
+        XCTAssertTrue(runRule(HttpURLLiteralRule(),
+            on: "let url = URL(string: \"http://::1/health\")\n").isEmpty)
+        XCTAssertTrue(runRule(HttpURLLiteralRule(),
+            on: "let url = URL(string: \"http://[::1]:8080/x\")\n").isEmpty)
+    }
+
     func testXMLNamespaceAndPrefixStringsAreNotFlagged() {
         // Opaque identifiers, never fetched — the classic FP for this rule class.
         XCTAssertTrue(runRule(HttpURLLiteralRule(),

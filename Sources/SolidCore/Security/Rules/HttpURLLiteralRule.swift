@@ -8,7 +8,7 @@ public struct HttpURLLiteralRule: SecurityRule {
     public static let category = "Network"
     public static let defaultSeverity = Severity.warning
 
-    static let exemptHosts = ["localhost", "127.0.0.1", "::1"]
+    static let exemptHosts = ["localhost", "127.0.0.1"]
 
     /// XML namespace / DTD authority hosts — these strings are opaque
     /// identifiers, never fetched as network URLs. Allowlisting is the
@@ -42,6 +42,12 @@ public struct HttpURLLiteralRule: SecurityRule {
                       value.hasPrefix("http://") else { return .skipChildren }
                 let afterScheme = String(value.dropFirst("http://".count))
                 let host = afterScheme.split(separator: "/").first.map(String.init) ?? ""
+
+                // IPv6: bracket notation http://[::1]:8080/... or raw http://::1/...
+                // host.split(separator:":") would mangle both forms, so we check
+                // for IPv6 loopback before the port-strip step.
+                if host.hasPrefix("[::1]") || host == "::1" { return .skipChildren }
+
                 // Strip port to get the bare hostname.
                 let bare = host.split(separator: ":").first.map(String.init) ?? host
 
