@@ -193,13 +193,20 @@ final class ConfigGeneratorTests: XCTestCase {
     }
 
     func testSecuritySectionAppendsToGeneratedConfig() throws {
-        // `init --tca --security` / `init --security` on a project with modules:
-        // the security section is appended to whatever mode generated.
-        let yaml = "layers:\n  - name: A\n    paths: [Sources/A/**]\n" + ConfigGenerator.securitySection()
+        // `init --security` on a project with modules: the security section is
+        // appended to the base YAML produced by generate(mode:).
+        let root = try makeProject([
+            "A": ["File": ["Foundation", "B"]],
+            "B": ["File": ["Foundation"]],
+        ])
+        let base = try ConfigGenerator(root: root, packagesDir: nil).generate(mode: .layered)
+        let yaml = base + ConfigGenerator.securitySection()
+
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("sec-append-\(UUID().uuidString).yml")
         try yaml.write(to: url, atomically: true, encoding: .utf8)
         defer { try? FileManager.default.removeItem(at: url) }
+
         let config = try Configuration.load(from: url.path)
         XCTAssertNoThrow(try config.validate())
         XCTAssertEqual(config.security?.enabled, true)

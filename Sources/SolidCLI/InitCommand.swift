@@ -49,12 +49,14 @@ struct Init: ParsableCommand {
         let generator = ConfigGenerator(root: path, packagesDir: packagesDir)
 
         let yaml: String
+        var usedSecurityPreset = false
         do {
             let base = try generator.generate(mode: mode)
             yaml = security ? base + ConfigGenerator.securitySection() : base
         } catch ConfigGeneratorError.noModules where security {
             // --security alone on an empty/module-less project: emit a standalone preset.
             yaml = ConfigGenerator.securityPreset()
+            usedSecurityPreset = true
         } catch {
             FileHandle.standardError.write(Data("SolidLikeARock: init failed: \(error)\n".utf8))
             throw ExitCode.failure
@@ -64,7 +66,9 @@ struct Init: ParsableCommand {
 
         let layerCount = yaml.components(separatedBy: "\n  - name:").count - 1
         print("✅ SolidLikeARock: wrote \(outputPath)")
-        if tca {
+        if usedSecurityPreset {
+            print("   mode: security-only")
+        } else if tca {
             print("   mode: tca, layers: \(layerCount)")
         } else {
             print("   mode: \(freeze ? "freeze" : "layered"), modules: \(layerCount)")
