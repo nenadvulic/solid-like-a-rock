@@ -64,7 +64,8 @@ public enum SecurityRuleRegistry {
         [KeychainAccessibleAlwaysRule(), KeychainMissingAccessibilityRule(),
          InsecureHashRule(), HardcodedSecretRule(), HighEntropySecretRule(),
          TokenInUserDefaultsRule(), SensitiveDataInUserDefaultsRule(),
-         BiometryNoErrorHandlingRule(), BiometryNoFallbackRule()]
+         BiometryNoErrorHandlingRule(), BiometryNoFallbackRule(),
+         PublicPIIInLogRule(), PrintSensitiveDataRule()]
     }
 
     public static var allRuleIDs: Set<String> {
