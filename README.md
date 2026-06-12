@@ -354,20 +354,23 @@ config are rejected before linting.
 
 | Rule | Category | Default | Detects |
 |------|----------|---------|---------|
-| `keychainAccessibleAlways` | Keychain | error | `kSecAttrAccessibleAlways(ThisDeviceOnly)` — item readable while the device is locked |
-| `keychainMissingAccessibility` | Keychain | error | `SecItemAdd` query with `kSecClass` but no `kSecAttrAccessible` (or `kSecAttrAccessControl`) |
-| `insecureHash` | Crypto | error | `Insecure.MD5` / `Insecure.SHA1` (CryptoKit), `CC_MD5` / `CC_SHA1` |
-| `hardcodedSecret` | Crypto | error | secret-named identifier (`apiKey`, `password`, `token`, …) assigned a non-placeholder literal |
-| `cleartextHTTP` | Network | error | `Info.plist` with `NSAllowsArbitraryLoads = true` (ATS off globally) |
-| `disabledTLSValidation` | Network | error | URLSession challenge handler passing the server trust to `.useCredential` without `SecTrustEvaluate` (trust-all) |
-| `tokenInUserDefaults` | Auth | error | credential-keyed `UserDefaults.set` (`token`, `jwt`, `password`, `secret`, `credential`) |
-| `biometryNoErrorHandling` | Auth | error | `canEvaluatePolicy(_, error: nil)` — the failure reason is discarded |
-| `publicPIIInLog` | Logging | error | `\(x, privacy: .public)` interpolation of a PII-named value — os_log redaction defeated |
-| `printSensitiveData` | Logging | warning | `print` / `NSLog` / `debugPrint` / `dump` of sensitive-named identifiers |
-| `httpURLLiteral` | Network | warning | `http://` literals (loopback / `.local` / XML-namespace hosts exempt) |
-| `biometryNoFallback` | Auth | warning | `.deviceOwnerAuthenticationWithBiometrics` — no passcode fallback |
-| `sensitiveDataInUserDefaults` | Keychain | warning | PII-keyed `UserDefaults.set` (`firstName`, `homeAddress`, `ssn`, …) |
-| `highEntropySecret` | Crypto | warning | long high-entropy base64/hex literals that look like an embedded key |
+| [`keychainAccessibleAlways`](docs/security-rules.md#keychainaccessiblealways-error) | Keychain | error | `kSecAttrAccessibleAlways(ThisDeviceOnly)` — item readable while the device is locked |
+| [`keychainMissingAccessibility`](docs/security-rules.md#keychainmissingaccessibility-error) | Keychain | error | `SecItemAdd` query with `kSecClass` but no `kSecAttrAccessible` (or `kSecAttrAccessControl`) |
+| [`insecureHash`](docs/security-rules.md#insecurehash-error) | Crypto | error | `Insecure.MD5` / `Insecure.SHA1` (CryptoKit), `CC_MD5` / `CC_SHA1` |
+| [`hardcodedSecret`](docs/security-rules.md#hardcodedsecret-error) | Crypto | error | secret-named identifier (`apiKey`, `password`, `token`, …) assigned a non-placeholder literal |
+| [`cleartextHTTP`](docs/security-rules.md#cleartexthttp-error) | Network | error | `Info.plist` with `NSAllowsArbitraryLoads = true` (ATS off globally) |
+| [`disabledTLSValidation`](docs/security-rules.md#disabledtlsvalidation-error) | Network | error | URLSession challenge handler passing the server trust to `.useCredential` without `SecTrustEvaluate` (trust-all) |
+| [`tokenInUserDefaults`](docs/security-rules.md#tokeninuserdefaults-error) | Auth | error | credential-keyed `UserDefaults.set` (`token`, `jwt`, `password`, `secret`, `credential`) |
+| [`biometryNoErrorHandling`](docs/security-rules.md#biometrynoerrorhandling-error) | Auth | error | `canEvaluatePolicy(_, error: nil)` — the failure reason is discarded |
+| [`publicPIIInLog`](docs/security-rules.md#publicpiiinlog-error) | Logging | error | `\(x, privacy: .public)` interpolation of a PII-named value — os_log redaction defeated |
+| [`printSensitiveData`](docs/security-rules.md#printsensitivedata-warning) | Logging | warning | `print` / `NSLog` / `debugPrint` / `dump` of sensitive-named identifiers |
+| [`httpURLLiteral`](docs/security-rules.md#httpurlliteral-warning) | Network | warning | `http://` literals (loopback / `.local` / XML-namespace hosts exempt) |
+| [`biometryNoFallback`](docs/security-rules.md#biometrynofallback-warning) | Auth | warning | `.deviceOwnerAuthenticationWithBiometrics` — no passcode fallback |
+| [`sensitiveDataInUserDefaults`](docs/security-rules.md#sensitivedatainuserdefaults-warning) | Keychain | warning | PII-keyed `UserDefaults.set` (`firstName`, `homeAddress`, `ssn`, …) |
+| [`highEntropySecret`](docs/security-rules.md#highentropysecret-warning) | Crypto | warning | long high-entropy base64/hex literals that look like an embedded key |
+
+Each rule is documented in detail — what fires, why it matters, and what is
+deliberately not flagged — in the [security rules reference](docs/security-rules.md).
 
 `// solid:ignore <reason>` works on a flagged line (or the line above) exactly
 as it does for import violations — the reason is mandatory.
