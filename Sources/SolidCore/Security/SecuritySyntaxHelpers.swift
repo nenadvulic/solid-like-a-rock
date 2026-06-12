@@ -1,5 +1,16 @@
 import SwiftSyntax
 
+/// The literal's plain text, or nil when it contains interpolation
+/// (an interpolated string is not a hardcoded constant).
+func plainTextValue(of literal: StringLiteralExprSyntax) -> String? {
+    var out = ""
+    for segment in literal.segments {
+        guard let s = segment.as(StringSegmentSyntax.self) else { return nil }
+        out += s.content.text
+    }
+    return out
+}
+
 /// Strip `as` casts from an expression: `x as T`, `x as T as U` → `x`.
 ///
 /// SwiftSyntax 600.x parses `x as T` not as AsExprSyntax but as a flat
