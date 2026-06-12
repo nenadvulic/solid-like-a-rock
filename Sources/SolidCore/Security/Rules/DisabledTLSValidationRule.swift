@@ -25,11 +25,33 @@ public struct DisabledTLSValidationRule: SecurityRule {
                           $0.firstName.text == "didReceive"
                       }),
                       let body = node.body else { return .visitChildren }
-                let text = body.trimmedDescription
-                guard text.contains(".useCredential"),
-                      text.contains("URLCredential(trust:"),
-                      !text.contains("SecTrustEvaluate") else { return .visitChildren }
+
+                // Use token text only — trivia (comments) are excluded, so a
+                // commented-out SecTrustEvaluate cannot suppress the finding.
+                let tokens = body.tokens(viewMode: .sourceAccurate).map(\.text)
+                let text = tokens.joined(separator: " ")
+
+                // ".useCredential" tokens: `. useCredential`; match on the identifier.
+                guard text.contains("useCredential"),
+                      // "URLCredential(trust:" tokens: `URLCredential ( trust :`
+                      text.contains("URLCredential ( trust") else { return .visitChildren }
+
+                // Cancel branch: if the handler CAN reject the challenge
+                // (cancelAuthenticationChallenge present as a token), some
+                // validation logic exists — under-report direction; skip.
+                // Trade-off: a trust-all that also has a decorative cancel path
+                // would be missed, but provability wins over sensitivity here.
+                if tokens.contains("cancelAuthenticationChallenge") { return .visitChildren }
+
+                // No SecTrustEvaluate* token means no system trust evaluation.
+                // Match any token that starts with "SecTrustEvaluate" to cover
+                // SecTrustEvaluate, SecTrustEvaluateWithError, SecTrustEvaluateAsync…
+                let hasTrustEval = tokens.contains(where: { $0.hasPrefix("SecTrustEvaluate") })
+                guard !hasTrustEval else { return .visitChildren }
+
                 // Report at the completionHandler call line, not the func line.
+                // CallFinder works on node descriptions (trivia-inclusive) — fine
+                // for line attribution; we only changed how we detect the pattern.
                 final class CallFinder: SyntaxVisitor {
                     var node: FunctionCallExprSyntax?
                     override func visit(_ call: FunctionCallExprSyntax) -> SyntaxVisitorContinueKind {
