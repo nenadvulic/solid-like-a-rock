@@ -26,13 +26,13 @@ public struct SecurityChecker {
             let converter = SourceLocationConverter(fileName: file, tree: tree)
             for rule in rules {
                 let meta = type(of: rule)
+                let severity = config.effectiveSeverity(ruleID: meta.id,
+                                                        builtInDefault: meta.defaultSeverity)
                 for finding in rule.check(tree, file: file, converter: converter) {
                     if let node = finding.node, hasSolidIgnore(node) { continue }
                     violations.append(.security(
                         ruleID: meta.id, category: meta.category, message: finding.message,
-                        file: file, line: finding.line,
-                        severity: config.effectiveSeverity(ruleID: meta.id,
-                                                           builtInDefault: meta.defaultSeverity)))
+                        file: file, line: finding.line, severity: severity))
                 }
             }
         }
