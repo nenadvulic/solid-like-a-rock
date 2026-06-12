@@ -87,6 +87,10 @@ struct Lint: ParsableCommand {
             allViolations += VisibilityChecker(rules: vis)
                 .check(roots: paths, excluding: excludes)
         }
+        if let security = configuration.security, security.enabled {
+            allViolations += SecurityChecker(config: security)
+                .check(swiftFiles: files, roots: paths, excluding: excludes)
+        }
         allViolations.sort(by: { ($0.file, $0.line) < ($1.file, $1.line) })
 
         // --write-baseline: snapshot the current violations and exit successfully.
@@ -123,7 +127,7 @@ struct Lint: ParsableCommand {
         }
 
         guard !violations.isEmpty else {
-            print("✅ SolidLikeARock: no import violations (\(files.count) file(s) checked).")
+            print("✅ SolidLikeARock: no violations (\(files.count) file(s) checked).")
             return
         }
 

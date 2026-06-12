@@ -177,6 +177,41 @@ final class ConfigGeneratorTests: XCTestCase {
         XCTAssertTrue(deps.isolatePeers)
         XCTAssertTrue(deps.modules.contains("APIClient"))
     }
+
+    // MARK: Security preset
+
+    func testSecurityPresetIsValidAndStandalone() throws {
+        let yaml = ConfigGenerator.securityPreset()
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("sec-preset-\(UUID().uuidString).yml")
+        try yaml.write(to: url, atomically: true, encoding: .utf8)
+        defer { try? FileManager.default.removeItem(at: url) }
+        let config = try Configuration.load(from: url.path)
+        XCTAssertNoThrow(try config.validate())
+        XCTAssertEqual(config.security?.enabled, true)
+        XCTAssertTrue(config.layers.isEmpty)
+    }
+
+    func testSecuritySectionAppendsToGeneratedConfig() throws {
+        // `init --security` on a project with modules: the security section is
+        // appended to the base YAML produced by generate(mode:).
+        let root = try makeProject([
+            "A": ["File": ["Foundation", "B"]],
+            "B": ["File": ["Foundation"]],
+        ])
+        let base = try ConfigGenerator(root: root, packagesDir: nil).generate(mode: .layered)
+        let yaml = base + ConfigGenerator.securitySection()
+
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("sec-append-\(UUID().uuidString).yml")
+        try yaml.write(to: url, atomically: true, encoding: .utf8)
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        let config = try Configuration.load(from: url.path)
+        XCTAssertNoThrow(try config.validate())
+        XCTAssertEqual(config.security?.enabled, true)
+        XCTAssertFalse(config.layers.isEmpty)
+    }
 }
 
 /// Tiny helper to decode a YAML string into Configuration in tests.

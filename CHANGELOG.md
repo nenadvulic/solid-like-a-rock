@@ -5,6 +5,19 @@ All notable changes to SolidLikeARock. Versions follow the `swift-syntax`-friend
 
 ## [Unreleased]
 
+## [0.9.0]
+- **Security checks**: opt-in `security:` section — 14 rules across Keychain,
+  Crypto, Network, Auth and Logging (insecure hashes, hardcoded secrets,
+  credentials in UserDefaults, disabled TLS validation, ATS off, PII in logs, …).
+  Provable patterns default to `error`, heuristics to `warning`; per-rule
+  `severity` overrides and `disable:`; `// solid:ignore <reason>` works on
+  flagged lines.
+- **`init --security`**: security-only starter config (no `layers:` required);
+  composes with `--tca`/`--freeze`.
+- `layers:` is now optional — a security-only `.solid.yml` is valid. An inert
+  config (nothing to check) is rejected with an explicit error.
+- **`examples/security.solid.yml`**: ready-to-use security-only preset template.
+
 ## [0.8.0]
 - **Architecture graph** (`graph` subcommand): emit a layer-level diagram of your
   modules straight from the real import graph — Mermaid (default, renders natively
