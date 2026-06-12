@@ -197,7 +197,8 @@ variable stays silent when its *value* is identifier-shaped rather than
 secret-shaped:
 
 - Placeholders and templates: `"changeme"`, `"YOUR_API_KEY"`, `"${API_KEY}"`,
-  `"<insert>"`, anything under 8 characters.
+  `"<insert>"`, the literal words `"secret"` and `"password"` themselves, and
+  anything under 8 characters.
 - Interpolated strings (`"prefix-\(dynamic)"`) — not a hardcoded constant.
 - URLs (`"https://auth.example.com/token"`) — endpoints are not secrets.
 - Header names (`"X-Api-Key"`) — labels, not secrets.
