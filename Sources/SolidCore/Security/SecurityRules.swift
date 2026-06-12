@@ -52,14 +52,18 @@ public struct SecurityRules: Decodable, Equatable {
     }
 }
 
-/// Central list of every security rule ID, used by config validation.
-/// Populated as rules are implemented (Task 4 onwards).
+/// Central registry of every security rule.
 public enum SecurityRuleRegistry {
-    public static let allRuleIDs: Set<String> = [
-        "keychainAccessibleAlways", "keychainMissingAccessibility",
-        "insecureHash", "hardcodedSecret", "cleartextHTTP",
-        "tokenInUserDefaults", "biometryNoErrorHandling", "publicPIIInLog",
-        "disabledTLSValidation", "printSensitiveData", "httpURLLiteral",
-        "biometryNoFallback", "sensitiveDataInUserDefaults", "highEntropySecret",
-    ]
+    /// Every shipping rule. Grows task by task; the Info.plist ATS check is
+    /// separate (not a SecurityRule — it reads plists, not Swift trees) but
+    /// its ID `cleartextHTTP` is still registered for config validation.
+    public static func makeAllRules() -> [any SecurityRule] {
+        []   // rules are appended here as they land
+    }
+
+    public static var allRuleIDs: Set<String> {
+        var ids = Set(makeAllRules().map { type(of: $0).id })
+        ids.insert("cleartextHTTP")
+        return ids
+    }
 }
