@@ -20,6 +20,11 @@ final class SecurityCryptoRulesTests: XCTestCase {
         XCTAssertTrue(runRule(InsecureHashRule(), on: "let d = SHA256.hash(data: data)\n").isEmpty)
     }
 
+    func testQualifiedCryptoKitInsecureIsFlagged() {
+        XCTAssertEqual(runRule(InsecureHashRule(),
+            on: "let d = CryptoKit.Insecure.MD5.hash(data: data)\n").count, 1)
+    }
+
     // MARK: hardcodedSecret
 
     func testSecretNamedLiteralIsFlagged() {
@@ -52,6 +57,26 @@ final class SecurityCryptoRulesTests: XCTestCase {
         XCTAssertTrue(runRule(HardcodedSecretRule(), on: "let token = \"prefix-\\(dynamic)\"\n").isEmpty)
     }
 
+    func testCommonIOSStringIdiomsAreNotFlagged() {
+        // Header name — a label, not a secret.
+        XCTAssertTrue(runRule(HardcodedSecretRule(), on: "let apiKeyHeader = \"X-Api-Key\"\n").isEmpty)
+        // URL — endpoints are not secrets.
+        XCTAssertTrue(runRule(HardcodedSecretRule(),
+            on: "static let tokenEndpoint = \"https://auth.example.com/token\"\n").isEmpty)
+        // Keypath / reverse-DNS UserDefaults keys — the most common iOS string idiom.
+        XCTAssertTrue(runRule(HardcodedSecretRule(), on: "let keyPath = \"user.profile.image\"\n").isEmpty)
+        XCTAssertTrue(runRule(HardcodedSecretRule(), on: "let lastSyncKey = \"com.app.lastSyncDate\"\n").isEmpty)
+        // Notification.Name-style values.
+        XCTAssertTrue(runRule(HardcodedSecretRule(),
+            on: "static let tokenRefreshed = \"tokenRefreshedNotification\"\n").isEmpty)
+    }
+
+    func testJWTStaysFlaggedDespiteDots() {
+        // Dotted-identifier filter must NOT swallow JWTs: base64url segments are long.
+        let jwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dBjftJeZ4CVPmB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+        XCTAssertEqual(runRule(HardcodedSecretRule(), on: "let authToken = \"\(jwt)\"\n").count, 1)
+    }
+
     // MARK: highEntropySecret
 
     func testHighEntropyBase64LiteralIsFlagged() {
@@ -66,5 +91,18 @@ final class SecurityCryptoRulesTests: XCTestCase {
         XCTAssertTrue(runRule(HighEntropySecretRule(),
                               on: "let s = \"This is a normal English sentence here.\"\n").isEmpty) // spaces → not base64/hex charset
         XCTAssertTrue(runRule(HighEntropySecretRule(), on: "let s = \"short\"\n").isEmpty)     // < 20 chars
+    }
+
+    func testHexEncodedKeyIsFlagged() {
+        // 64-char hex (a SHA-256-sized key). Pure hex caps at 4.0 bits/char,
+        // so it needs its own gate — the base64 threshold can't reach it.
+        let hex = "3f786850e387550fdab836ed7e6dc881de23001b1a9a3f4d9aab2c2f8b7e2d4a"
+        XCTAssertEqual(runRule(HighEntropySecretRule(), on: "let k = \"\(hex)\"\n").count, 1)
+    }
+
+    func testEnglishHexLikeWordsAreNotFlagged() {
+        // Short or low-entropy hex-charset strings stay silent.
+        XCTAssertTrue(runRule(HighEntropySecretRule(), on: "let s = \"deadbeefdeadbeefdeadbeef\"\n").isEmpty)
+        XCTAssertTrue(runRule(HighEntropySecretRule(), on: "let s = \"cafebabe\"\n").isEmpty)
     }
 }

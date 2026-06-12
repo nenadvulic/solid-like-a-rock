@@ -41,7 +41,38 @@ public struct HardcodedSecretRule: SecurityRule {
                 let lowered = value.lowercased()
                 if HardcodedSecretRule.placeholders.contains(lowered) { return false }
                 if lowered.contains("your_") || lowered.contains("your-") { return false }
+                // URLs are endpoints, not secrets.
+                if value.contains("://") { return false }
+                // Keypath / reverse-DNS shapes (UserDefaults keys, bundle ids); JWT
+                // base64url segments exceed the per-segment cap, so JWTs still fire.
+                if isDottedIdentifier(value) { return false }
+                // Header-name shapes like "X-Api-Key" are labels, not secrets.
+                if isHeaderName(value) { return false }
+                // Single pure-alpha words ("tokenRefreshedNotification") are overwhelmingly
+                // identifiers/names. Trade-off: an alpha-only password with no digits or
+                // separators is exempted too — accepted; real secrets carry digit/symbol entropy.
+                if !value.isEmpty && value.allSatisfy(isASCIILetter) { return false }
                 return true
+            }
+            /// `seg(.seg)+` where every segment is an identifier (`[A-Za-z_][A-Za-z0-9_-]*`)
+            /// of at most 20 characters.
+            static func isDottedIdentifier(_ value: String) -> Bool {
+                let segments = value.split(separator: ".", omittingEmptySubsequences: false)
+                guard segments.count >= 2 else { return false }
+                return segments.allSatisfy { seg in
+                    guard seg.count <= 20, let first = seg.first,
+                          isASCIILetter(first) || first == "_" else { return false }
+                    return seg.dropFirst().allSatisfy { isASCIILetter($0) || $0.isNumber || $0 == "_" || $0 == "-" }
+                }
+            }
+            /// `Word(-Word)+` with alpha-only words, e.g. "X-Api-Key".
+            static func isHeaderName(_ value: String) -> Bool {
+                let words = value.split(separator: "-", omittingEmptySubsequences: false)
+                guard words.count >= 2 else { return false }
+                return words.allSatisfy { !$0.isEmpty && $0.allSatisfy(isASCIILetter) }
+            }
+            static func isASCIILetter(_ c: Character) -> Bool {
+                ("a"..."z").contains(c) || ("A"..."Z").contains(c)
             }
         }
         let v = V(converter: converter)

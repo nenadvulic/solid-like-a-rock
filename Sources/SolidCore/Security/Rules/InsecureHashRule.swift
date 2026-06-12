@@ -20,9 +20,12 @@ public struct InsecureHashRule: SecurityRule {
                 super.init(viewMode: .sourceAccurate)
             }
             override func visit(_ node: MemberAccessExprSyntax) -> SyntaxVisitorContinueKind {
-                // Insecure.MD5 / Insecure.SHA1 (any deeper member access included).
-                if let base = node.base?.as(DeclReferenceExprSyntax.self),
-                   base.baseName.text == "Insecure",
+                // Insecure.MD5 / Insecure.SHA1, bare or module-qualified
+                // (CryptoKit.Insecure.MD5 — the base is then a MemberAccess ending in "Insecure").
+                let baseIsInsecure =
+                    node.base?.as(DeclReferenceExprSyntax.self)?.baseName.text == "Insecure"
+                    || node.base?.as(MemberAccessExprSyntax.self)?.declName.baseName.text == "Insecure"
+                if baseIsInsecure,
                    ["MD5", "SHA1"].contains(node.declName.baseName.text) {
                     add(node.declName.baseName.text, Syntax(node))
                     return .skipChildren
