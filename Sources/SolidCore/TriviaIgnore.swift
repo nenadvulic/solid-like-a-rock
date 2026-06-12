@@ -2,8 +2,11 @@ import Foundation
 import SwiftSyntax
 
 /// Extract the reason from a `solid:ignore <reason>` directive found in any
-/// comment of the given trivia. Returns `nil` if absent or if no (non-empty)
-/// reason follows the directive — the reason is mandatory.
+/// comment of the given trivia. The directive must START the comment body:
+/// after stripping the comment delimiter (`//`, `///`, `/*`, `/**`) and any
+/// leading whitespace, the text must begin with `solid:ignore`. Returns `nil`
+/// if absent or if no (non-empty) reason follows the directive — the reason
+/// is mandatory.
 /// (Moved out of `ImportCollector` so security rules share the same directive.)
 func solidIgnoreReason(in trivia: Trivia) -> String? {
     for piece in trivia {
@@ -15,68 +18,48 @@ func solidIgnoreReason(in trivia: Trivia) -> String? {
         default:
             continue
         }
-        guard let range = text.range(of: "solid:ignore") else { continue }
-        var reason = String(text[range.upperBound...])
-        // Trim comment delimiters and whitespace around the reason.
+        // Strip the comment opener (longest delimiters first), then require
+        // the directive to start the remaining comment body.
+        var body = Substring(text)
+        for delimiter in ["/**", "///", "/*", "//"] where body.hasPrefix(delimiter) {
+            body = body.dropFirst(delimiter.count)
+            break
+        }
+        body = body.drop(while: { $0 == " " || $0 == "\t" })
+        guard body.hasPrefix("solid:ignore") else { continue }
+        var reason = String(body.dropFirst("solid:ignore".count))
+        // Trim closing comment delimiters and whitespace around the reason.
         reason = reason.trimmingCharacters(in: CharacterSet(charactersIn: " \t*/"))
         if !reason.isEmpty { return reason }
     }
     return nil
 }
 
-/// Whether a flagged node is suppressed by `// solid:ignore <reason>` on the
-/// same line (trailing trivia of the enclosing statement) or the line above
-/// (leading trivia). Walks up to the enclosing `CodeBlockItemSyntax` /
-/// `MemberBlockItemSyntax` because the parser attaches end-of-line comments to
-/// the outermost node of the line, not to the inner expression that fired.
-public func hasSolidIgnore(_ node: Syntax) -> Bool {
+/// The reason given by a `// solid:ignore <reason>` directive suppressing the
+/// node, or `nil` when the node is not suppressed.
+///
+/// Suppression granularity is the enclosing STATEMENT: the walk climbs to the
+/// enclosing `CodeBlockItemSyntax` / `MemberBlockItemSyntax` (the parser
+/// attaches end-of-line comments to the outermost node of the line, not to the
+/// inner expression that fired), so a directive above or at the end of a
+/// multi-line statement suppresses findings anywhere inside that statement.
+/// The directive must start the comment body; a mid-comment mention does not
+/// suppress, and the reason is mandatory.
+public func solidIgnoreReason(for node: Syntax) -> String? {
     var current: Syntax? = node
     while let n = current {
-        if solidIgnoreReason(in: n.leadingTrivia) != nil { return true }
-        if solidIgnoreReason(in: n.trailingTrivia) != nil { return true }
+        if let reason = solidIgnoreReason(in: n.leadingTrivia) { return reason }
+        if let reason = solidIgnoreReason(in: n.trailingTrivia) { return reason }
         if n.is(CodeBlockItemSyntax.self) || n.is(MemberBlockItemSyntax.self) { break }
         current = n.parent
     }
-    // The trailing comment of the LAST statement on a line can also be attached
-    // as the leading trivia of the NEXT token — check the next token too, but
-    // only when no newline precedes the comment (a comment on a LATER line
-    // belongs to the next statement, not to this one).
-    if let item = node.enclosingLineItem(),
-       let next = item.lastToken(viewMode: .sourceAccurate)?
-           .nextToken(viewMode: .sourceAccurate),
-       solidIgnoreReason(in: next.leadingTrivia) != nil,
-       !next.leadingTrivia.containsNewlineBeforeComment {
-        return true
-    }
-    return false
+    return nil
 }
 
-extension Syntax {
-    /// The statement-level ancestor that owns this node's source line.
-    func enclosingLineItem() -> Syntax? {
-        var current: Syntax? = self
-        while let n = current {
-            if n.is(CodeBlockItemSyntax.self) || n.is(MemberBlockItemSyntax.self) { return n }
-            current = n.parent
-        }
-        return nil
-    }
-}
-
-extension Trivia {
-    /// True when a newline appears before the first comment piece — i.e. the
-    /// comment is on a LATER line, so it must not suppress the previous line.
-    var containsNewlineBeforeComment: Bool {
-        for piece in self {
-            switch piece {
-            case .newlines, .carriageReturns, .carriageReturnLineFeeds:
-                return true
-            case .lineComment, .blockComment, .docLineComment, .docBlockComment:
-                return false
-            default:
-                continue
-            }
-        }
-        return false
-    }
+/// Whether a flagged node is suppressed by `// solid:ignore <reason>` on the
+/// same line or the line above. Suppression granularity is the enclosing
+/// STATEMENT — see `solidIgnoreReason(for:)` for the exact semantics (the
+/// directive must start the comment, and the reason is mandatory).
+public func hasSolidIgnore(_ node: Syntax) -> Bool {
+    solidIgnoreReason(for: node) != nil
 }

@@ -56,4 +56,35 @@ final class TriviaIgnoreTests: XCTestCase {
         let source = "doThing()\n// solid:ignore belongs to the line below\nother()\n"
         XCTAssertFalse(hasSolidIgnore(Syntax(firstCall(in: source))))
     }
+
+    func testProseMentioningDirectiveDoesNotSuppress() {
+        let call = firstCall(in: "doThing() // we should not solid:ignore anything here\n")
+        XCTAssertFalse(hasSolidIgnore(Syntax(call)))
+    }
+
+    func testAnchoredDirectiveStillSuppresses() {
+        let call = firstCall(in: "doThing() //   solid:ignore legacy path\n")
+        XCTAssertTrue(hasSolidIgnore(Syntax(call)))
+    }
+
+    func testBlockCommentDirectiveSuppresses() {
+        let call = firstCall(in: "doThing() /* solid:ignore fixture */\n")
+        XCTAssertTrue(hasSolidIgnore(Syntax(call)))
+    }
+
+    func testMultiStatementLineOnlySuppressesLastStatement() {
+        let source = "a(); b() // solid:ignore only b\n"
+        // first call = a() — must NOT be suppressed by b's trailing comment.
+        XCTAssertFalse(hasSolidIgnore(Syntax(firstCall(in: source))))
+    }
+
+    func testClosingBraceCommentDoesNotLeakIntoBlock() {
+        let source = "if x {\n    bad()\n} // solid:ignore brace comment\n"
+        XCTAssertFalse(hasSolidIgnore(Syntax(firstCall(in: source))))
+    }
+
+    func testReasonIsExposed() {
+        let call = firstCall(in: "doThing() // solid:ignore legacy ETag\n")
+        XCTAssertEqual(solidIgnoreReason(for: Syntax(call)), "legacy ETag")
+    }
 }
