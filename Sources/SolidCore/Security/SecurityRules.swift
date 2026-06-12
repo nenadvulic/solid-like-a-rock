@@ -61,7 +61,7 @@ public enum SecurityRuleRegistry {
     /// separate (not a SecurityRule — it reads plists, not Swift trees) but
     /// its ID `cleartextHTTP` is still registered for config validation.
     public static func makeAllRules() -> [any SecurityRule] {
-        []   // rules are appended here as they land
+        [KeychainAccessibleAlwaysRule(), KeychainMissingAccessibilityRule()]
     }
 
     public static var allRuleIDs: Set<String> {
