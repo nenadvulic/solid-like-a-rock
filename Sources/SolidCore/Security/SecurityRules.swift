@@ -62,7 +62,9 @@ public enum SecurityRuleRegistry {
     /// its ID `cleartextHTTP` is still registered for config validation.
     public static func makeAllRules() -> [any SecurityRule] {
         [KeychainAccessibleAlwaysRule(), KeychainMissingAccessibilityRule(),
-         InsecureHashRule(), HardcodedSecretRule(), HighEntropySecretRule()]
+         InsecureHashRule(), HardcodedSecretRule(), HighEntropySecretRule(),
+         TokenInUserDefaultsRule(), SensitiveDataInUserDefaultsRule(),
+         BiometryNoErrorHandlingRule(), BiometryNoFallbackRule()]
     }
 
     public static var allRuleIDs: Set<String> {
