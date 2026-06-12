@@ -80,4 +80,52 @@ final class SecurityKeychainRulesTests: XCTestCase {
         """)
         XCTAssertTrue(findings.isEmpty)
     }
+
+    func testNameCollisionAcrossFunctionsIsNotFlagged() {
+        // Canonical keychain-wrapper shape: several methods each declare `let query`.
+        // save()'s query HAS accessibility; find()'s search query legitimately hasn't.
+        // The SecItemAdd must resolve to ITS OWN query — ambiguous names stay silent.
+        let findings = runRule(KeychainMissingAccessibilityRule(), on: """
+        func save(data: Data) {
+            let query: [String: Any] = [
+                kSecClass as String: kSecClassGenericPassword,
+                kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked,
+            ]
+            SecItemAdd(query as CFDictionary, nil)
+        }
+        func find() {
+            let query: [String: Any] = [
+                kSecClass as String: kSecClassGenericPassword,
+                kSecMatchLimit as String: kSecMatchLimitOne,
+            ]
+            SecItemCopyMatching(query as CFDictionary, nil)
+        }
+        """)
+        XCTAssertTrue(findings.isEmpty)
+    }
+
+    func testVarDictMutatedBeforeAddIsNotFlagged() {
+        // A `var` literal can gain kSecAttrAccessible after the fact — no proof, stay silent.
+        let findings = runRule(KeychainMissingAccessibilityRule(), on: """
+        var query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+        ]
+        query[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlocked
+        SecItemAdd(query as CFDictionary, nil)
+        """)
+        XCTAssertTrue(findings.isEmpty)
+    }
+
+    func testAccessControlSatisfiesTheRequirement() {
+        // kSecAttrAccessControl and kSecAttrAccessible are mutually exclusive;
+        // an access-control query is the MOST secure pattern — never flag it.
+        let findings = runRule(KeychainMissingAccessibilityRule(), on: """
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrAccessControl as String: access,
+        ]
+        SecItemAdd(query as CFDictionary, nil)
+        """)
+        XCTAssertTrue(findings.isEmpty)
+    }
 }

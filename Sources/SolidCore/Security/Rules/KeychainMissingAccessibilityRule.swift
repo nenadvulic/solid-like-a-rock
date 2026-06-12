@@ -13,29 +13,30 @@ public struct KeychainMissingAccessibilityRule: SecurityRule {
 
     public func check(_ tree: SourceFileSyntax, file: String,
                       converter: SourceLocationConverter) -> [SecurityFinding] {
-        // Pass 1: dictionary literals assigned to a name, keyed by that name.
+        // Pass 1: dictionary literals assigned to a `let` name, keyed by that name.
+        // Only `let` counts: a `var` literal can gain kSecAttrAccessible after the
+        // fact (query[...] = ...) — no proof of the final contents, stay silent.
         final class DictCollector: SyntaxVisitor {
             var literals: [String: DictionaryExprSyntax] = [:]
+            /// Names bound to MORE THAN ONE dictionary literal in the file.
+            /// Wrapper types canonically declare `let query` in each method
+            /// (save/find/delete); resolving SecItemAdd's `query` to another
+            /// method's literal would be wrong. Ambiguous names are excluded.
+            var collided: Set<String> = []
             override func visit(_ node: VariableDeclSyntax) -> SyntaxVisitorContinueKind {
+                guard node.bindingSpecifier.text == "let" else { return .visitChildren }
                 for binding in node.bindings {
                     guard let name = binding.pattern.as(IdentifierPatternSyntax.self)?.identifier.text,
                           let value = binding.initializer?.value else { continue }
-                    if let dict = Self.unwrapDictionary(value) { literals[name] = dict }
+                    if let dict = Self.unwrapDictionary(value) {
+                        if literals.updateValue(dict, forKey: name) != nil { collided.insert(name) }
+                    }
                 }
                 return .visitChildren
             }
             /// Unwrap `[...] as CFDictionary` / plain `[...]` to the literal.
-            /// Note: `expr as Type` is parsed as a SequenceExprSyntax with three
-            /// elements — [expr, unresolvedAsExpr, typeExpr] — not as AsExprSyntax.
             static func unwrapDictionary(_ expr: ExprSyntax) -> DictionaryExprSyntax? {
-                if let dict = expr.as(DictionaryExprSyntax.self) { return dict }
-                if let seq = expr.as(SequenceExprSyntax.self),
-                   seq.elements.count == 3,
-                   seq.elements[seq.elements.index(seq.elements.startIndex, offsetBy: 1)]
-                       ._syntaxNode.kind == .unresolvedAsExpr {
-                    return unwrapDictionary(ExprSyntax(seq.elements[seq.elements.startIndex]))
-                }
-                return nil
+                stripAsCasts(expr).as(DictionaryExprSyntax.self)
             }
         }
         let dicts = DictCollector(viewMode: .sourceAccurate)
@@ -46,9 +47,12 @@ public struct KeychainMissingAccessibilityRule: SecurityRule {
             var findings: [SecurityFinding] = []
             let converter: SourceLocationConverter
             let named: [String: DictionaryExprSyntax]
-            init(converter: SourceLocationConverter, named: [String: DictionaryExprSyntax]) {
+            let collided: Set<String>
+            init(converter: SourceLocationConverter, named: [String: DictionaryExprSyntax],
+                 collided: Set<String>) {
                 self.converter = converter
                 self.named = named
+                self.collided = collided
                 super.init(viewMode: .sourceAccurate)
             }
             override func visit(_ node: FunctionCallExprSyntax) -> SyntaxVisitorContinueKind {
@@ -57,13 +61,18 @@ public struct KeychainMissingAccessibilityRule: SecurityRule {
                 let dict: DictionaryExprSyntax?
                 if let literal = DictCollector.unwrapDictionary(first) {
                     dict = literal
-                } else if let name = Self.referencedName(first) {
+                } else if let name = Self.referencedName(first), !collided.contains(name) {
                     dict = named[name]
                 } else {
                     dict = nil
                 }
+                // kSecAttrAccessControl is mutually exclusive with
+                // kSecAttrAccessible (per Apple docs, SecAccessControl carries
+                // its own protection class) — adding the advised key would
+                // even break the call. Never flag access-control queries.
                 guard let dict, Self.hasKey(dict, "kSecClass"),
-                      !Self.hasKey(dict, "kSecAttrAccessible") else { return .visitChildren }
+                      !Self.hasKey(dict, "kSecAttrAccessible"),
+                      !Self.hasKey(dict, "kSecAttrAccessControl") else { return .visitChildren }
                 findings.append(SecurityFinding(
                     line: node.startLocation(converter: converter).line,
                     message: "SecItemAdd query has no kSecAttrAccessible — the item gets the OS default protection class; set it explicitly",
@@ -71,23 +80,16 @@ public struct KeychainMissingAccessibilityRule: SecurityRule {
                 return .visitChildren
             }
             /// `query` / `query as CFDictionary` → "query".
-            /// Handles the SequenceExprSyntax form of `expr as Type`.
             static func referencedName(_ expr: ExprSyntax) -> String? {
-                if let ref = expr.as(DeclReferenceExprSyntax.self) { return ref.baseName.text }
-                if let seq = expr.as(SequenceExprSyntax.self),
-                   seq.elements.count == 3,
-                   seq.elements[seq.elements.index(seq.elements.startIndex, offsetBy: 1)]
-                       ._syntaxNode.kind == .unresolvedAsExpr {
-                    return referencedName(ExprSyntax(seq.elements[seq.elements.startIndex]))
-                }
-                return nil
+                stripAsCasts(expr).as(DeclReferenceExprSyntax.self)?.baseName.text
             }
             static func hasKey(_ dict: DictionaryExprSyntax, _ key: String) -> Bool {
                 guard case let .elements(elements) = dict.content else { return false }
                 return elements.contains { $0.key.trimmedDescription.contains(key) }
             }
         }
-        let calls = CallVisitor(converter: converter, named: dicts.literals)
+        let calls = CallVisitor(converter: converter, named: dicts.literals,
+                                collided: dicts.collided)
         calls.walk(tree)
         return calls.findings
     }
