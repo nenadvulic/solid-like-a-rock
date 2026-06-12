@@ -20,13 +20,26 @@ public struct BiometryNoFallbackRule: SecurityRule {
                 super.init(viewMode: .sourceAccurate)
             }
             override func visit(_ node: MemberAccessExprSyntax) -> SyntaxVisitorContinueKind {
-                if node.declName.baseName.text == "deviceOwnerAuthenticationWithBiometrics" {
+                if node.declName.baseName.text == "deviceOwnerAuthenticationWithBiometrics",
+                   !Self.isInsideCasePattern(node) {
                     findings.append(SecurityFinding(
                         line: node.startLocation(converter: converter).line,
                         message: "biometrics-only policy has no passcode fallback — consider .deviceOwnerAuthentication",
                         node: Syntax(node)))
                 }
                 return .visitChildren
+            }
+            /// `case .deviceOwnerAuthenticationWithBiometrics:` is provably
+            /// HANDLING a policy someone else selected, not selecting one.
+            /// (Plain `== .deviceOwnerAuthenticationWithBiometrics` comparisons
+            /// are not provably harmless and stay flagged.)
+            static func isInsideCasePattern(_ node: MemberAccessExprSyntax) -> Bool {
+                var current: Syntax? = node.parent
+                while let ancestor = current, !ancestor.is(CodeBlockItemSyntax.self) {
+                    if ancestor.is(ExpressionPatternSyntax.self) { return true }
+                    current = ancestor.parent
+                }
+                return false
             }
         }
         let v = V(converter: converter)

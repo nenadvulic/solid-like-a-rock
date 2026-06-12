@@ -40,8 +40,15 @@ public protocol SecurityRule {
 let secretNameWords = ["apikey", "key", "secret", "token", "password", "credential", "passphrase",
                        "jwt"]
 
-/// Identifier-name fragments that indicate PII (used by several rules).
-let piiNameWords = ["email", "phone", "address", "name", "username", "userid", "user",
+/// Identifier-name fragments that indicate PII (shared calibration: the
+/// UserDefaults PII rule today, the logging PII rules to come inherit it).
+/// Bare "name"/"user"/"address" are deliberately absent — they flag UI and
+/// infrastructure keys (`displayName`, `userInterfaceStyle`, `serverAddress`)
+/// far more often than PII. Only qualified pairs are provably personal; the
+/// matcher's adjacent-pair join makes `firstName` match "firstname".
+let piiNameWords = ["firstname", "lastname", "fullname", "realname",
+                    "emailaddress", "homeaddress", "postaladdress", "phonenumber",
+                    "email", "phone", "username", "userid",
                     "token", "password", "ssn", "dob", "birthdate"]
 
 /// Whole-word match: `apiKey`, `api_key`, `API_KEY` all match "apikey"/"key";

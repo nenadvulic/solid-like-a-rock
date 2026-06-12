@@ -24,6 +24,24 @@ final class SecurityAuthStorageRulesTests: XCTestCase {
             on: "UserDefaults.standard.set(v, forKey: dynamicKey)\n").isEmpty)
     }
 
+    func testBooleanAuthPreferencesAreNotFlagged() {
+        // `auth` preference flags are not credentials; a Bool is provably not a secret.
+        XCTAssertTrue(runRule(TokenInUserDefaultsRule(),
+            on: "defaults.set(true, forKey: \"biometricAuthEnabled\")\n").isEmpty)
+        XCTAssertTrue(runRule(TokenInUserDefaultsRule(),
+            on: "UserDefaults.standard.set(false, forKey: \"requireAuthOnLaunch\")\n").isEmpty)
+    }
+
+    func testSetValueVariantIsAlsoFlagged() {
+        XCTAssertEqual(runRule(TokenInUserDefaultsRule(),
+            on: "UserDefaults.standard.setValue(t, forKey: \"sessionToken\")\n").count, 1)
+    }
+
+    func testCustomDefaultsWrapperIsCovered() {
+        XCTAssertEqual(runRule(TokenInUserDefaultsRule(),
+            on: "appDefaults.set(t, forKey: \"refreshToken\")\n").count, 1)
+    }
+
     // MARK: sensitiveDataInUserDefaults
 
     func testEmailKeyIsFlaggedByPIIRule() {
@@ -37,10 +55,33 @@ final class SecurityAuthStorageRulesTests: XCTestCase {
     }
 
     func testTokenKeyIsNotDoubleFlaggedByPIIRule() {
-        // Rule tokenInUserDefaults (error) owns secret-words; this rule only fires
-        // on PII words NOT covered by it, so one store = one finding.
+        // Rule tokenInUserDefaults (error) owns credential KEYS: any key it
+        // matches is excluded here at key level, so one store = one finding.
         XCTAssertTrue(runRule(SensitiveDataInUserDefaultsRule(),
             on: "UserDefaults.standard.set(jwt, forKey: \"authToken\")\n").isEmpty)
+    }
+
+    func testUserTokenFiresOnlyTheTokenRule() {
+        let src = "UserDefaults.standard.set(t, forKey: \"userToken\")\n"
+        XCTAssertEqual(runRule(TokenInUserDefaultsRule(), on: src).count, 1)
+        XCTAssertTrue(runRule(SensitiveDataInUserDefaultsRule(), on: src).isEmpty)
+    }
+
+    func testNonPIIPreferenceKeysAreNotFlagged() {
+        for key in ["userInterfaceStyle", "hasSeenUserGuide", "displayName",
+                    "deviceName", "fontName", "serverAddress"] {
+            XCTAssertTrue(runRule(SensitiveDataInUserDefaultsRule(),
+                on: "defaults.set(v, forKey: \"\(key)\")\n").isEmpty,
+                "expected '\(key)' to be silent")
+        }
+    }
+
+    func testRealPIIKeysStillFlagged() {
+        for key in ["firstName", "userEmail", "phoneNumber", "homeAddress", "ssn"] {
+            XCTAssertEqual(runRule(SensitiveDataInUserDefaultsRule(),
+                on: "defaults.set(v, forKey: \"\(key)\")\n").count, 1,
+                "expected '\(key)' to fire")
+        }
     }
 
     // MARK: biometryNoErrorHandling
@@ -68,5 +109,17 @@ final class SecurityAuthStorageRulesTests: XCTestCase {
     func testPolicyWithPasscodeFallbackIsNotFlagged() {
         XCTAssertTrue(runRule(BiometryNoFallbackRule(),
             on: "context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: r) { ok, err in }\n").isEmpty)
+    }
+
+    func testSwitchCasePatternIsNotFlagged() {
+        // A `case .deviceOwnerAuthenticationWithBiometrics:` is provably HANDLING
+        // a policy, not selecting one.
+        let findings = runRule(BiometryNoFallbackRule(), on: """
+        switch policy {
+        case .deviceOwnerAuthenticationWithBiometrics: break
+        default: break
+        }
+        """)
+        XCTAssertTrue(findings.isEmpty)
     }
 }

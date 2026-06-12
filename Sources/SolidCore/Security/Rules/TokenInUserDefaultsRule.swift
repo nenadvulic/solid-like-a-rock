@@ -6,8 +6,12 @@ public struct TokenInUserDefaultsRule: SecurityRule {
     public static let id = "tokenInUserDefaults"
     public static let category = "Auth"
     public static let defaultSeverity = Severity.error
-    /// Secret words owned by THIS rule; the PII sibling excludes them.
-    static let words = ["token", "jwt", "password", "secret", "credential", "auth"]
+    /// Secret words owned by THIS rule; the PII sibling excludes keys matching them.
+    /// No bare "auth": it overwhelmingly names preference flags
+    /// (`biometricAuthEnabled`, `requireAuthOnLaunch`), not credentials. Real
+    /// credentials are still caught via token/secret/password/jwt/credential
+    /// (e.g. `authToken` matches "token").
+    static let words = ["token", "jwt", "password", "secret", "credential"]
 
     public init() {}
 

@@ -1,43 +1,62 @@
 import SwiftSyntax
 
-/// Find `….set(_, forKey: "literal")` calls on a UserDefaults-looking base
-/// (`UserDefaults.standard`, `defaults`, …) whose key matches `words`.
-/// Conservative: non-literal keys never match.
+/// Find `….set(_, forKey: "literal")` / `….setValue(_, forKey: "literal")`
+/// calls on a UserDefaults-looking base (`UserDefaults.standard`, `defaults`,
+/// …) whose key matches `words` but none of `excludeWords` (lets the PII rule
+/// defer whole keys to the credential rule). Conservative: non-literal keys
+/// never match, and a Bool/Int literal value is provably not a secret
+/// (preference flags like `defaults.set(true, forKey: "biometricAuthEnabled")`
+/// stay silent).
 func userDefaultsSetFindings(in tree: SourceFileSyntax,
                              converter: SourceLocationConverter,
                              words: [String],
+                             excludeWords: [String] = [],
                              message: @escaping (String) -> String) -> [SecurityFinding] {
     final class V: SyntaxVisitor {
         var findings: [SecurityFinding] = []
         let converter: SourceLocationConverter
         let words: [String]
+        let excludeWords: [String]
         let message: (String) -> String
-        init(converter: SourceLocationConverter, words: [String], message: @escaping (String) -> String) {
+        init(converter: SourceLocationConverter, words: [String], excludeWords: [String],
+             message: @escaping (String) -> String) {
             self.converter = converter
             self.words = words
+            self.excludeWords = excludeWords
             self.message = message
             super.init(viewMode: .sourceAccurate)
         }
         override func visit(_ node: FunctionCallExprSyntax) -> SyntaxVisitorContinueKind {
             guard let member = node.calledExpression.as(MemberAccessExprSyntax.self),
-                  member.declName.baseName.text == "set",
+                  ["set", "setValue"].contains(member.declName.baseName.text),
                   Self.baseLooksLikeUserDefaults(member.base),
                   let keyArg = node.arguments.first(where: { $0.label?.text == "forKey" }),
                   let literal = keyArg.expression.as(StringLiteralExprSyntax.self),
                   let key = plainTextValue(of: literal),
-                  matchesSensitiveName(key, words: words)
+                  matchesSensitiveName(key, words: words),
+                  !matchesSensitiveName(key, words: excludeWords),
+                  !Self.valueIsProvablyNotSecret(node)
             else { return .visitChildren }
             findings.append(SecurityFinding(
                 line: node.startLocation(converter: converter).line,
                 message: message(key), node: Syntax(node)))
             return .visitChildren
         }
+        /// The stored VALUE (first unlabeled argument) is a Bool or Int
+        /// literal — provably not a credential or PII, whatever the key says.
+        static func valueIsProvablyNotSecret(_ node: FunctionCallExprSyntax) -> Bool {
+            guard let value = node.arguments.first(where: { $0.label == nil })?.expression
+            else { return false }
+            return value.is(BooleanLiteralExprSyntax.self) || value.is(IntegerLiteralExprSyntax.self)
+        }
         static func baseLooksLikeUserDefaults(_ base: ExprSyntax?) -> Bool {
             guard let text = base?.trimmedDescription.lowercased() else { return false }
-            return text.contains("userdefaults") || text.contains("defaults")
+            // "defaults" also covers "userdefaults" (substring), so a single
+            // check suffices for UserDefaults.standard and custom wrappers alike.
+            return text.contains("defaults")
         }
     }
-    let v = V(converter: converter, words: words, message: message)
+    let v = V(converter: converter, words: words, excludeWords: excludeWords, message: message)
     v.walk(tree)
     return v.findings
 }
