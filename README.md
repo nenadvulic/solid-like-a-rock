@@ -840,9 +840,6 @@ dependency appears.
 
 - [x] Architecture rules
 - [x] Import validation
-- [ ] Circular dependency detection
-- [ ] Feature boundary enforcement
-- [ ] AI PR review signals
 - [x] Architecture graph visualization
 - [x] Security checks (Keychain misuse, cleartext HTTP, weak crypto, auth flaws, PII in logs)
 
